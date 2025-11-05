@@ -27,7 +27,7 @@ pip install -e .
 # pip install -r requirements.txt
 ```
 
-**Dependencies:** PyYAML, SciPy, NumPy (for batch processing), ffmpeg (for thumbnails)
+**Dependencies:** PyYAML, SciPy, NumPy (batch processing), OpenAI (ali_openai provider), ffmpeg (thumbnails/frames)
 
 ## 🎯 Quick Start
 
@@ -151,12 +151,21 @@ cr-video-analyze path/to/video.mp4 \
   --api-base https://api.example.com/analyze \
   --api-key-env EXTERNAL_API_KEY \
   --frames 8
+
+# Alibaba Cloud (OpenAI-compatible) — Qwen VL/Omni via Model Studio
+cr-video-analyze path/to/video.mp4 \
+  --provider ali_openai \
+  --model qwen-vl-max \
+  --api-base https://dashscope.aliyuncs.com/compatible-mode/v1 \
+  --api-key-env DASHSCOPE_API_KEY \
+  --frames 6
 ```
 
 Notes:
 - Stores results as `<video>_analysis.json` by default.
 - Uses `ffprobe`/`ffmpeg` if installed to probe metadata and sample frames.
 - Provider-specific integrations can be added when model docs/keys are available.
+ - For Alibaba Cloud Model Studio using the OpenAI Python SDK, install: `pip install -U openai`
 
 **Phase 3: Refined Exploration**
 ```bash
