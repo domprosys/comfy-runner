@@ -12,6 +12,7 @@ This is a scaffold: fill in provider-specific API calls once model docs/keys are
 from __future__ import annotations
 
 import json
+import textwrap
 import os
 import sys
 import time
@@ -44,6 +45,65 @@ def load_dotenv_if_present(path: str = ".env") -> None:
                 os.environ[k] = v
     except Exception:
         pass
+
+
+def _jsonable(obj):
+    """Best-effort conversion of SDK objects to plain JSON-serializable data."""
+    # Primitives
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    # Lists / tuples
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(x) for x in obj]
+    # Dicts
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+    # OpenAI pydantic-style objects
+    for method_name in ("model_dump", "to_dict", "dict"):
+        m = getattr(obj, method_name, None)
+        if callable(m):
+            try:
+                return _jsonable(m())
+            except Exception:
+                pass
+    # Fallback to __dict__ or str
+    if hasattr(obj, "__dict__"):
+        try:
+            return _jsonable(vars(obj))
+        except Exception:
+            pass
+    return str(obj)
+
+
+def _extract_text_from_analysis(analysis: Any) -> str:
+    """Try to extract a human-readable text summary from various provider results."""
+    # Direct string or 'text' field
+    if isinstance(analysis, str):
+        return analysis
+    if isinstance(analysis, dict):
+        if analysis.get("text"):
+            return str(analysis.get("text"))
+        # OpenAI-like structure with choices
+        choices = analysis.get("choices")
+        if isinstance(choices, list) and choices:
+            parts = []
+            for ch in choices:
+                # ch may be dict with message.content
+                msg = ch.get("message") if isinstance(ch, dict) else None
+                content = None
+                if isinstance(msg, dict):
+                    content = msg.get("content")
+                if content:
+                    parts.append(str(content))
+            if parts:
+                return "\n\n".join(parts)
+        # Sometimes nested under 'response'
+        resp = analysis.get("response")
+        if isinstance(resp, dict):
+            sub = _extract_text_from_analysis(resp)
+            if sub:
+                return sub
+    return ""
 
 
 def ffprobe_metadata(video_path: Path) -> Dict[str, Any]:
@@ -351,16 +411,19 @@ def analyze_ali_openai_video(video_path: Path, frames: List[Path], prompt: str, 
         try:
             if chunk.choices:
                 delta = chunk.choices[0].delta
-                if isinstance(delta, dict):
-                    # In some SDK versions, delta may be an object with 'content'
-                    content = delta.get("content") if isinstance(delta, dict) else None
-                    if content:
-                        text_parts.append(str(content))
-                else:
-                    text_parts.append(str(delta))
+                # Prefer explicit content field over object repr
+                content = None
+                if hasattr(delta, "content"):
+                    content = getattr(delta, "content")
+                elif isinstance(delta, dict):
+                    content = delta.get("content")
+                # Append only real text
+                if content:
+                    text_parts.append(str(content))
             else:
                 usage_obj = getattr(chunk, "usage", None)
         except Exception:
+            # Ignore malformed chunks
             pass
 
     return {"text": "".join(text_parts), "usage": usage_obj, "model": model}
@@ -385,7 +448,7 @@ def main():
     parser.add_argument("--frames", type=int, default=8, help="Number of frames to sample for context")
     parser.add_argument("--prompt", type=str, default="Provide a structured analysis of the video content (scenes, motion, objects, actions).", help="Instruction for the vision model")
     parser.add_argument("--api-base", dest="api_base", type=str, default=None, help="Provider base URL (for provider=http, or OpenAI-compatible base for ali_openai)")
-    parser.add_argument("--api-key-env", dest="api_key_env", type=str, default=None, help="Environment variable containing API key")
+    parser.add_argument("--api-key-env", dest="api_key_env", type=str, default="DASHSCOPE_API_KEY", help="Environment variable containing API key (default: DASHSCOPE_API_KEY)")
     parser.add_argument("--timeout", type=int, default=120, help="HTTP timeout in seconds")
     parser.add_argument("--model", type=str, default=None, help="Model name (required for ali_openai, e.g., qwen-vl-max)")
     parser.add_argument("--modalities", type=str, default="text", help="For ali_openai_video: 'text' or 'text,audio'")
@@ -495,8 +558,19 @@ def main():
 
     out_json.parent.mkdir(parents=True, exist_ok=True)
     with open(out_json, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+        json.dump(_jsonable(payload), f, indent=2, ensure_ascii=False)
     print(f"\n✅ Saved analysis → {out_json}")
+
+    # Pretty-print a clean text summary if available
+    summary = _extract_text_from_analysis(result)
+    if summary:
+        print("\n🧾 Analysis Summary")
+        print("=" * 70)
+        wrapped = textwrap.fill(summary.strip(), width=100, replace_whitespace=False)
+        print(wrapped)
+        print("=" * 70)
+    else:
+        print("\nℹ️  No plain text content found in provider response.")
 
     if not args.keep_frames:
         try:

@@ -530,6 +530,16 @@ cr-shots workflows/<name>/configs/shots.yaml
 # Generate visualization
 cr-contact-sheet output/batch_YYYY-MM-DD/
 
+# Analyze a video with external API (scaffold)
+cr-video-analyze path/to/video.mp4 --provider noop
+
+# Alibaba Cloud Model Studio (OpenAI-compatible)
+cr-video-analyze path/to/video.mp4 \
+  --provider ali_openai \
+  --model qwen-vl-max \
+  --api-base https://dashscope.aliyuncs.com/compatible-mode/v1 \
+  --api-key-env DASHSCOPE_API_KEY
+
 # Run in screen (for long batches)
 screen -S batch
 cr-batch workflows/<name>/configs/<config>.yaml
@@ -561,5 +571,3 @@ Before starting work, consider:
 ---
 
 *This document is for AI coding assistants. For user documentation, see README.md*
-# Analyze a video with external API (scaffold)
-cr-video-analyze path/to/video.mp4 --provider noop
