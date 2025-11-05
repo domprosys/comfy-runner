@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfy-runner"
+version = "0.1.0"
+description = "ComfyUI API Automation Suite: batch parameter exploration and tools"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "scipy>=1.10.0",
+  "numpy>=1.24.0",
+]
+
+[project.scripts]
+comfy-run = "comfy_api.runner:main"
+comfy-analyze = "comfy_api.analyzer:main"
+comfy-batch = "comfy_api.batch:main"
+comfy-shots = "comfy_api.shots_batch:main"
+comfy-contact-sheet = "comfy_api.contact_sheet:main"
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100

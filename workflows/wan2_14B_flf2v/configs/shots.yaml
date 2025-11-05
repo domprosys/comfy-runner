@@ -1,0 +1,65 @@
+# Shot-Based Batch Configuration
+# Test multiple shots (each with prompt + first/last frame images) with parameter variations
+
+workflow_file: ../workflow.json
+sampling_strategy: sobol
+num_samples: 10          # Parameter combinations per shot
+seeds_per_sample: 2      # Variations per combination
+
+# Shot configuration
+shots:
+  directory: ../../../shots      # Directory containing shot folders (relative to this config)
+  comfyui_input_path: ~/comfy/ComfyUI/input  # Where to copy images
+  negative_prompt: "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"  # Optional: default negative prompt for all shots
+
+# Each shot folder must contain:
+#   - prompt.txt       (positive prompt)
+#   - first_frame.png  (start image)
+#   - last_frame.png   (end image)
+
+# Parameters to vary for each shot
+parameters:
+  # Frame count - how many frames to generate
+  frame_count:
+    path: nodes.67.inputs.length
+    type: linear
+    min: 60
+    max: 180
+    step: 30
+    # Creates: [60, 90, 120, 150, 180]
+
+  # LoRA strength for high-noise pass
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: continuous
+    min: 1.0
+    max: 2.5
+
+  # LoRA strength for low-noise pass
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: continuous
+    min: 1.0
+    max: 2.5
+
+  # Random seed for variation
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+# Total videos = num_shots × num_samples × seeds_per_sample
+# Example: 3 shots × 10 samples × 2 seeds = 60 videos
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: false  # Resume not implemented for shot-based yet
+  skip_existing: false
+
+comfyui:
+  server_address: '127.0.0.1:8188'
+  poll_interval: 2

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Environments
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project outputs
+output/
+
+# Build artifacts / packaging
+build/
+dist/
+*.egg-info/
+
+# Dev tool caches
+.ruff_cache/
+.mypy_cache/
+
+# Coverage
+.coverage
+coverage.xml
+
+# Machine-learning/model weights (never commit large weights)
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+
+# Editor
+.vscode/
+.idea/

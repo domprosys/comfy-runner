@@ -1,0 +1,28 @@
+# Minimal one-run sanity test
+
+workflow_file: ../workflow.json
+
+sampling_strategy: sobol   # Irrelevant here (no continuous params)
+num_samples: 1             # Exactly one parameter combination
+seeds_per_sample: 1        # One run only
+
+parameters:
+  # Optional: generate a random seed for the high-noise pass
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+output:
+  base_dir: ../../../output
+  run_name_pattern: '{run_id:04d}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: '127.0.0.1:8188'
+  poll_interval: 2
+

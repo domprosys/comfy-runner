@@ -1,0 +1,6 @@
+# Core functionality: no dependencies (stdlib only)
+
+# Batch processing and parameter exploration
+pyyaml>=6.0
+scipy>=1.10.0  # For Sobol sequences and LHS sampling
+numpy>=1.24.0  # Required by scipy

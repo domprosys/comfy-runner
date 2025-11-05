@@ -1,0 +1,88 @@
+# Batch Parameter Exploration Configuration
+# This file defines the parameter space for exploring WAN video generation
+
+# Base workflow to use (must exist in current directory)
+workflow_file: "video_wan2_2_14B_flf2v.json"
+
+# Sampling strategy: "sobol", "lhs", "grid", or "random"
+# - sobol: Quasi-random Sobol sequences (best coverage, recommended)
+# - lhs: Latin Hypercube Sampling (good for parameter sensitivity)
+# - grid: Exhaustive grid search (expensive, grows exponentially)
+# - random: Pure random sampling
+sampling_strategy: "sobol"
+
+# Number of parameter combinations to generate
+# Note: For "grid" strategy, this is ignored (uses all combinations)
+num_samples: 100
+
+# Number of different random seeds to test per parameter set
+# This creates variation while keeping other parameters constant
+seeds_per_sample: 3
+
+# Parameter ranges to explore
+# Each parameter can be:
+#   - list: [1.0, 1.5, 2.0] - discrete values
+#   - dict: {min: 0.5, max: 3.0} - continuous range for sampling
+parameters:
+  # LoRA strength for both high and low noise passes
+  # Default in workflow: 2.0
+  lora_strength:
+    min: 0.5
+    max: 3.0
+
+  # CFG (Classifier-Free Guidance) scale
+  # Default in workflow: 1.0
+  # Lower = more creative, Higher = more prompt adherence
+  cfg:
+    min: 0.5
+    max: 2.5
+
+  # Sampling steps for high-noise pass (first 2 steps)
+  # Default: 2 (out of 4 total)
+  steps_high:
+    values: [1, 2, 3]
+
+  # Total steps for both passes
+  # Default: 4
+  total_steps:
+    values: [3, 4, 5, 6]
+
+  # Model shift parameter for SD3
+  # Default: 5 for both passes
+  # Controls noise schedule behavior
+  shift:
+    values: [3, 4, 5, 6, 7]
+
+# Output organization
+output:
+  # Base directory for batch outputs
+  base_dir: "output"
+
+  # Naming pattern for run directories
+  # Available variables: {run_id}, {lora_strength}, {cfg}, {shift}, {seed}
+  run_name_pattern: "{run_id:04d}_lora{lora_strength:.1f}_cfg{cfg:.1f}_shift{shift}_seed{seed}"
+
+  # Save individual parameter JSON for each run
+  save_params_json: true
+
+  # Generate metadata CSV
+  save_metadata_csv: true
+
+# Resume settings
+resume:
+  # Continue from previous batch if interrupted
+  enabled: true
+
+  # Skip existing output files
+  skip_existing: true
+
+# ComfyUI connection
+comfyui:
+  server_address: "127.0.0.1:8188"
+  poll_interval: 2  # seconds between status checks
+
+# Advanced: Fixed parameters (won't be varied)
+# Uncomment and set values to lock specific parameters
+# fixed_parameters:
+#   lora_strength: 2.0
+#   cfg: 1.0
