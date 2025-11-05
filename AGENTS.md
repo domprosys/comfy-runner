@@ -39,6 +39,9 @@ This document provides comprehensive context for AI coding assistants working on
    - Injects shot-specific data into workflow and organizes outputs per shot
 
 5. **Contact Sheet Generator** (`src/comfy_api/contact_sheet.py` → CLI: `cr-contact-sheet`)
+6. **Video Analyzer (External)** (`src/comfy_api/video_analyzer.py` → CLI: `cr-video-analyze`)
+   - Analyzes an input video with external vision APIs (scaffold)
+   - Minimal deps (ffprobe/ffmpeg optional); pluggable providers
    - Creates interactive HTML visualization of batch results (ffmpeg required)
 
 ---
@@ -558,3 +561,5 @@ Before starting work, consider:
 ---
 
 *This document is for AI coding assistants. For user documentation, see README.md*
+# Analyze a video with external API (scaffold)
+cr-video-analyze path/to/video.mp4 --provider noop

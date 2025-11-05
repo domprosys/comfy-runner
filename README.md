@@ -139,6 +139,25 @@ cr-contact-sheet output/batch_xxx
 # Sort by parameters, identify interesting regions
 ```
 
+### 6. Analyze a Video with an External Vision API (optional)
+
+```bash
+# No-op provider (scaffold): extracts a few frames and writes metadata
+cr-video-analyze path/to/video.mp4 --provider noop --frames 8 --keep-frames
+
+# Generic HTTP provider (multipart POST). Example:
+cr-video-analyze path/to/video.mp4 \
+  --provider http \
+  --api-base https://api.example.com/analyze \
+  --api-key-env EXTERNAL_API_KEY \
+  --frames 8
+```
+
+Notes:
+- Stores results as `<video>_analysis.json` by default.
+- Uses `ffprobe`/`ffmpeg` if installed to probe metadata and sample frames.
+- Provider-specific integrations can be added when model docs/keys are available.
+
 **Phase 3: Refined Exploration**
 ```bash
 # Narrow ranges based on Phase 1 findings
@@ -292,6 +311,7 @@ This creates 6×6×5 = **180 videos** exploring all LoRA strength combinations w
 | `legacy/batch_config.yaml` | Old hardcoded config | (Deprecated - use analyzer instead) |
 | `legacy/batch_runner.py` | Old hardcoded runner | (Deprecated - use v2 instead) |
 | `src/comfy_api/contact_sheet.py` | Visualization (CLI: cr-contact-sheet) | Comparing batch results |
+| `src/comfy_api/video_analyzer.py` | External video analysis (CLI: cr-video-analyze) | Analyze existing videos |
 
 ## 🚦 Workflow
 

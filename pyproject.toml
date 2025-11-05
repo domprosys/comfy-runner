@@ -26,6 +26,7 @@ cr-analyze = "comfy_api.analyzer:main"
 cr-batch = "comfy_api.batch:main"
 cr-shots = "comfy_api.shots_batch:main"
 cr-contact-sheet = "comfy_api.contact_sheet:main"
+cr-video-analyze = "comfy_api.video_analyzer:main"
 
 [tool.black]
 line-length = 100

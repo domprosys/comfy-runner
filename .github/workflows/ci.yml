@@ -30,6 +30,6 @@ jobs:
           import comfy_api.batch
           import comfy_api.shots_batch
           import comfy_api.contact_sheet
+          import comfy_api.video_analyzer
           print('Imports OK')
           PY
-
