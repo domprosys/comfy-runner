@@ -165,7 +165,18 @@ Notes:
 - Stores results as `<video>_analysis.json` by default.
 - Uses `ffprobe`/`ffmpeg` if installed to probe metadata and sample frames.
 - Provider-specific integrations can be added when model docs/keys are available.
- - For Alibaba Cloud Model Studio using the OpenAI Python SDK, install: `pip install -U openai`
+- For Alibaba Cloud Model Studio using the OpenAI Python SDK, install: `pip install -U openai`
+
+### Alibaba Cloud API Smoke Test
+
+```bash
+# With your API key in .env as DASHSCOPE_API_KEY
+cr-ali-test --model qwen-plus \
+  --api-base https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+```
+
+If you use the China (Beijing) region, replace the base URL with:
+`https://dashscope.aliyuncs.com/compatible-mode/v1`
 
 **Phase 3: Refined Exploration**
 ```bash
