@@ -28,6 +28,7 @@ cr-shots = "comfy_api.shots_batch:main"
 cr-contact-sheet = "comfy_api.contact_sheet:main"
 cr-video-analyze = "comfy_api.video_analyzer:main"
 cr-ali-test = "comfy_api.ali_smoke:main"
+cr-ali-video-test = "comfy_api.ali_video_test:main"
 
 [tool.black]
 line-length = 100
