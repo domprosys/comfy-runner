@@ -61,7 +61,8 @@ def generate_thumbnails(batch_dir: Path, metadata: List[Dict[str, Any]]) -> Dict
 
 def generate_html(batch_dir: Path, metadata: List[Dict[str, Any]], thumbnails: Dict[str, Path]) -> Path:
     output_file = batch_dir / "contact_sheet.html"
-    html = """<!DOCTYPE html>
+    # Use a template with placeholders to safely inject JSON
+    template = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset=\"UTF-8\">
@@ -118,12 +119,8 @@ def generate_html(batch_dir: Path, metadata: List[Dict[str, Any]], thumbnails: D
         <video id=\"modal-video\" controls autoplay loop></video>
     </div>
     <script>
-        const data = """
-"""
-    html += "        " + json.dumps(metadata, indent=8) + ";\n"
-    html += """
-        const batchDir = """ + json.dumps(str(batch_dir.name)) + """;\n"""
-    html += """
+        const data = ___DATA_JSON___;
+        const batchDir = ___BATCH_DIR_JSON___;
         document.getElementById('batch-dir').textContent = batchDir;
         document.getElementById('total-items').textContent = data.length;
         function renderGrid(items) {
@@ -174,6 +171,9 @@ def generate_html(batch_dir: Path, metadata: List[Dict[str, Any]], thumbnails: D
 </body>
 </html>
 """
+    data_json = json.dumps(metadata, indent=8)
+    batch_dir_json = json.dumps(str(batch_dir.name))
+    html = template.replace('___DATA_JSON___', data_json).replace('___BATCH_DIR_JSON___', batch_dir_json)
     with open(output_file, 'w') as f:
         f.write(html)
     return output_file
@@ -208,4 +208,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

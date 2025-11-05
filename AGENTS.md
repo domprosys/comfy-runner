@@ -10,43 +10,36 @@ This document provides comprehensive context for AI coding assistants working on
 
 **Key Innovation:** Combines intelligent sampling strategies (Sobol sequences) with automated workflow execution to efficiently explore high-dimensional parameter spaces.
 
+**Repository:** https://github.com/domprosys/comfy-runner
+
 ---
 
 ## What We Built
 
-### Core Components
+### Core Components (Packaged CLI)
 
-1. **Single Workflow Runner** (`comfy_runner.py`)
+1. **Single Workflow Runner** (`src/comfy_api/runner.py` → CLI: `cr-run`)
    - Executes a single ComfyUI workflow via API
    - HTTP polling (no WebSockets to avoid memory issues with large files)
    - Streaming file downloads to handle 100MB+ video files
-   - Simple, reliable, no external dependencies beyond stdlib
 
-2. **Workflow Analyzer** (`analyze_workflow.py`)
-   - Automatically extracts all modifiable parameters from any workflow JSON
-   - Generates human-readable parameter names (e.g., `lora_strength` instead of `param_nodes.91.inputs.strength_model`)
-   - Suggests intelligent exploration ranges based on parameter types and values
+2. **Workflow Analyzer** (`src/comfy_api/analyzer.py` → CLI: `cr-analyze`)
+   - Automatically extracts modifiable parameters from any workflow JSON
+   - Generates human-readable parameter names and suggested ranges
    - Outputs ready-to-edit YAML config templates
 
-3. **Generic Batch Runner** (`batch_runner_v2.py`)
-   - Works with ANY ComfyUI workflow (fully generic via parameter paths)
-   - Multiple sampling strategies: Sobol, LHS, Grid, Random
-   - Resume capability (crash-safe with `progress.json`)
+3. **Generic Batch Runner** (`src/comfy_api/batch.py` → CLI: `cr-batch`)
+   - Works with ANY ComfyUI workflow (via parameter paths)
+   - Sampling strategies: Sobol, LHS, Grid, Random
+   - Resume capability with `progress.json`
    - Streaming downloads, organized output, metadata tracking
-   - Supports 4 parameter types: continuous, linear, discrete values, random_seed
 
-4. **Shot-Based Batch Runner** (`batch_runner_shots.py`)
+4. **Shot-Based Batch Runner** (`src/comfy_api/shots_batch.py` → CLI: `cr-shots`)
    - Tests multiple "shots" (scene variations) with different prompts and frame pairs
-   - Each shot folder contains: `prompt.txt`, `first_frame.png`, `last_frame.png`
-   - Automatically injects shot-specific data into workflow
-   - Organized output by shot for easy comparison
-   - Ideal for testing same parameters across different scenes
+   - Injects shot-specific data into workflow and organizes outputs per shot
 
-5. **Contact Sheet Generator** (`generate_contact_sheet.py`)
-   - Creates interactive HTML visualization of batch results
-   - Extracts video thumbnails with ffmpeg
-   - Sortable/filterable parameter grid
-   - Click thumbnail to play full video
+5. **Contact Sheet Generator** (`src/comfy_api/contact_sheet.py` → CLI: `cr-contact-sheet`)
+   - Creates interactive HTML visualization of batch results (ffmpeg required)
 
 ---
 
@@ -143,7 +136,7 @@ seeds_per_sample: 3  # 3 random seeds per parameter combo
 ### Single Workflow Execution
 
 ```
-workflow.json → comfy_runner.py
+workflow.json → comfy_api.runner (cr-run)
                     ↓
             POST /prompt (ComfyUI API)
                     ↓
@@ -157,11 +150,11 @@ workflow.json → comfy_runner.py
 ### Batch Parameter Exploration
 
 ```
-workflow.json → analyze_workflow.py → config.yaml
+workflow.json → comfy_api.analyzer (cr-analyze) → config.yaml
                                           ↓
                                       (user edits)
                                           ↓
-config.yaml → batch_runner_v2.py
+config.yaml → comfy_api.batch (cr-batch)
                     ↓
             Generate parameter samples (Sobol/LHS/Grid)
                     ↓
@@ -183,7 +176,7 @@ config.yaml → batch_runner_v2.py
 ```
 shots/shot1/prompt.txt + images
                     ↓
-        batch_runner_shots.py
+        comfy_api.shots_batch (cr-shots)
                     ↓
         Copy images to ComfyUI/input/
         Inject prompt + image paths into workflow
@@ -205,38 +198,31 @@ shots/shot1/prompt.txt + images
 
 ```
 comfy-runner/
-├── comfy_runner.py              # Single workflow execution
-├── analyze_workflow.py          # Extract parameters, generate config
-├── batch_runner_v2.py           # Generic parameter exploration
-├── batch_runner_shots.py        # Shot-based testing
-├── generate_contact_sheet.py    # Visualization tool
-├── requirements.txt             # PyYAML, SciPy, NumPy
-├── README.md                    # User documentation
-├── AGENTS.md                    # This file (AI context)
-│
-├── video_wan2_2_14B_flf2v.json  # Example workflow (FLF2V)
-├── video_wan2_2_5B_ti2v.json    # Example workflow (TI2V)
-│
-├── shot_batch_config.yaml       # Example shot config
-├── shots/                       # Shot folders
-│   ├── README.md
-│   └── example_shot/
-│       ├── prompt.txt
-│       ├── first_frame.png
-│       └── last_frame.png
-│
-└── output/                      # Generated results
-    └── batch_YYYY-MM-DD_HH-MM-SS/
-        ├── config.yaml
-        ├── metadata.csv
-        ├── progress.json
-        └── runs/
+├── src/comfy_api/
+│   ├── runner.py           # Single workflow execution (CLI: cr-run)
+│   ├── analyzer.py         # Extract parameters, generate config (CLI: cr-analyze)
+│   ├── batch.py            # Generic parameter exploration (CLI: cr-batch)
+│   ├── shots_batch.py      # Shot-based testing (CLI: cr-shots)
+│   └── contact_sheet.py    # Visualization tool (CLI: cr-contact-sheet)
+├── workflows/
+│   ├── wan2_14B_flf2v/
+│   │   ├── workflow.json
+│   │   └── configs/
+│   │       ├── baseline.yaml
+│   │       ├── smoke.yaml
+│   │       └── shots.yaml
+│   └── wan2_5B_ti2v/
+│       └── ...
+├── shots/                  # Shot folders (see shots/README.md)
+├── README.md               # User documentation
+├── AGENTS.md               # This file (AI context)
+├── pyproject.toml          # Package + CLI entry points
+└── output/                 # Generated results (gitignored)
 ```
 
-### Legacy Files (Can Be Deleted)
+### Legacy Files
 
-- `batch_runner.py` - Old hardcoded version (replaced by v2)
-- `batch_config.yaml` - Old hardcoded config (replaced by analyzer)
+- Root-level scripts (`comfy_runner.py`, `analyze_workflow.py`, `batch_runner_v2.py`, `batch_runner_shots.py`, `generate_contact_sheet.py`) exist for backward compatibility but the packaged CLIs are the primary interface.
 
 ---
 
@@ -295,7 +281,7 @@ ComfyUI workflows are JSON graphs where:
      type: random_seed
    ```
 
-### WAN Workflow Specifics (video_wan2_2_14B_flf2v.json)
+### WAN Workflow Specifics (workflows/wan2_14B_flf2v/workflow.json)
 
 **Critical Parameters:**
 - **Prompt:** Node 6 (`nodes.6.inputs.text`)
@@ -317,7 +303,7 @@ ComfyUI workflows are JSON graphs where:
 ### Known Issues
 
 1. **Bug Fixed (2025-11-04):** `format_run_name()` had duplicate `run_id` argument
-   - Fixed in `batch_runner_v2.py` line 331
+   - Fixed in batch runner (`src/comfy_api/batch.py`)
    - Old: `pattern.format(**format_params, run_id=run_id)`
    - New: `pattern.format(**format_params)`
 
@@ -359,24 +345,21 @@ ComfyUI workflows are JSON graphs where:
 
 ```bash
 # 1. Test single execution first (critical!)
-python comfy_runner.py workflow.json
+cr-run workflows/<name>/workflow.json
 
 # 2. If works, analyze for parameters
-python analyze_workflow.py workflow.json
+cr-analyze workflows/<name>/workflow.json
 
-# 3. Edit generated config
-nano workflow_batch_config.yaml
+# 3. Edit generated config (uncomment parameters to vary)
+#    e.g., workflows/<name>/configs/baseline.yaml
 
-# 4. Start with small test batch
-num_samples: 5
-seeds_per_sample: 1
+# 4. Start with a small test batch
+#    In the config: num_samples: 5, seeds_per_sample: 1
 
 # 5. Run test
-python batch_runner_v2.py workflow_batch_config.yaml
+cr-batch workflows/<name>/configs/baseline.yaml
 
-# 6. If successful, scale up
-num_samples: 50
-seeds_per_sample: 3
+# 6. If successful, scale up (e.g., num_samples: 50, seeds_per_sample: 3)
 ```
 
 ### Typical Parameter Values
@@ -480,8 +463,8 @@ Resume works by checking `progress.json`:
 
 When making changes, verify:
 
-1. **Single workflow runs:** `python comfy_runner.py workflow.json`
-2. **Analyzer generates valid config:** `python analyze_workflow.py workflow.json`
+1. **Single workflow runs:** `cr-run workflows/<name>/workflow.json`
+2. **Analyzer generates valid config:** `cr-analyze workflows/<name>/workflow.json`
 3. **Small batch completes:** `num_samples: 3, seeds_per_sample: 1`
 4. **Resume works:** Interrupt batch, restart, verify skip
 5. **Parameter injection:** Check workflow JSON has modified values
@@ -530,23 +513,23 @@ Current status:
 
 ```bash
 # Test single workflow
-python comfy_runner.py workflow.json
+cr-run workflows/<name>/workflow.json
 
 # Analyze workflow
-python analyze_workflow.py workflow.json
+cr-analyze workflows/<name>/workflow.json
 
 # Run parameter batch
-python batch_runner_v2.py config.yaml
+cr-batch workflows/<name>/configs/<config>.yaml
 
 # Run shot-based batch
-python batch_runner_shots.py shot_config.yaml
+cr-shots workflows/<name>/configs/shots.yaml
 
 # Generate visualization
-python generate_contact_sheet.py output/batch_YYYY-MM-DD/
+cr-contact-sheet output/batch_YYYY-MM-DD/
 
 # Run in screen (for long batches)
 screen -S batch
-python batch_runner_v2.py config.yaml
+cr-batch workflows/<name>/configs/<config>.yaml
 # Ctrl+A, D to detach
 
 # Monitor progress
@@ -560,7 +543,7 @@ du -sh output/batch_*
 
 Before starting work, consider:
 1. Is the user's batch currently running? (Don't break it!)
-2. Does this change affect `batch_runner_v2.py`? (Upload to server needed)
+2. Does this change affect `src/comfy_api/batch.py`? (Upload to server needed)
 3. Will this work with their remote setup? (SSH, screen sessions, etc.)
 4. Is this generic or workflow-specific? (Aim for generic)
 5. How does this affect disk space? (Videos are huge)
@@ -568,7 +551,7 @@ Before starting work, consider:
 
 ---
 
-**Last Updated:** 2025-11-04
+**Last Updated:** 2025-11-05
 **Project Status:** Active development, deployed on user's remote server
 **Contact:** See parent README.md for user documentation
 

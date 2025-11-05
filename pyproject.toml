@@ -20,6 +20,13 @@ comfy-batch = "comfy_api.batch:main"
 comfy-shots = "comfy_api.shots_batch:main"
 comfy-contact-sheet = "comfy_api.contact_sheet:main"
 
+# New preferred short CLI names
+cr-run = "comfy_api.runner:main"
+cr-analyze = "comfy_api.analyzer:main"
+cr-batch = "comfy_api.batch:main"
+cr-shots = "comfy_api.shots_batch:main"
+cr-contact-sheet = "comfy_api.contact_sheet:main"
+
 [tool.black]
 line-length = 100
 

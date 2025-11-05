@@ -15,16 +15,19 @@ A comprehensive Python toolkit for automating ComfyUI workflows via API, with ad
 ## 📦 Installation
 
 ```bash
-# Create virtual environment
+# Create virtual environment (Python 3.10+)
 python3.12 -m venv venv
 source venv/bin/activate  # On Linux/Mac
 # venv\Scripts\activate  # On Windows
 
-# Install dependencies
-pip install -r requirements.txt
+# Install package (installs CLI: cr-run, cr-analyze, cr-batch, ...)
+pip install -e .
+
+# (Optional) If you prefer module invocation only, dependencies are in pyproject/requirements
+# pip install -r requirements.txt
 ```
 
-**Dependencies:** PyYAML, SciPy, NumPy (for batch processing)
+**Dependencies:** PyYAML, SciPy, NumPy (for batch processing), ffmpeg (for thumbnails)
 
 ## 🎯 Quick Start
 
@@ -32,7 +35,7 @@ pip install -r requirements.txt
 
 ```bash
 # Using package entry point
-comfy-run workflows/wan2_14B_flf2v/workflow.json
+cr-run workflows/wan2_14B_flf2v/workflow.json
 
 # Or via module
 python -m comfy_api.runner workflows/wan2_14B_flf2v/workflow.json
@@ -45,7 +48,7 @@ Output saved to `output/{prompt_id}/`.
 Automatically extract all parameters and generate batch config template:
 
 ```bash
-comfy-analyze workflows/wan2_14B_flf2v/workflow.json
+cr-analyze workflows/wan2_14B_flf2v/workflow.json
 ```
 
 This creates `my_workflow_batch_config.yaml` with:
@@ -82,7 +85,7 @@ parameters:
 ### 4. Run Batch Exploration
 
 ```bash
-comfy-batch workflows/wan2_14B_flf2v/configs/baseline.yaml
+cr-batch workflows/wan2_14B_flf2v/configs/baseline.yaml
 ```
 
 Progress is automatically saved - safe to interrupt and resume!
@@ -90,7 +93,7 @@ Progress is automatically saved - safe to interrupt and resume!
 ### 5. Generate Visual Comparison
 
 ```bash
-comfy-contact-sheet output/batch_2024-11-03_19-30-00
+cr-contact-sheet output/batch_2024-11-03_19-30-00
 ```
 
 Creates interactive HTML with:
@@ -132,7 +135,7 @@ seeds_per_sample: 1
 
 **Phase 2: Review Results**
 ```bash
-python generate_contact_sheet.py output/batch_xxx
+cr-contact-sheet output/batch_xxx
 # Sort by parameters, identify interesting regions
 ```
 
@@ -198,12 +201,12 @@ Analyze and run different workflows:
 
 ```bash
 # Text-to-image
-python analyze_workflow.py txt2img_workflow.json
-python batch_runner_v2.py txt2img_workflow_batch_config.yaml
+cr-analyze txt2img_workflow.json
+cr-batch txt2img_workflow_batch_config.yaml
 
 # Image-to-image
-python analyze_workflow.py img2img_workflow.json
-python batch_runner_v2.py img2img_workflow_batch_config.yaml
+cr-analyze img2img_workflow.json
+cr-batch img2img_workflow_batch_config.yaml
 ```
 
 ## 🎓 Example: LoRA Strength Exploration
@@ -288,20 +291,20 @@ This creates 6×6×5 = **180 videos** exploring all LoRA strength combinations w
 | `src/comfy_api/batch.py` | Generic batch executor | Running parameter exploration |
 | `legacy/batch_config.yaml` | Old hardcoded config | (Deprecated - use analyzer instead) |
 | `legacy/batch_runner.py` | Old hardcoded runner | (Deprecated - use v2 instead) |
-| `generate_contact_sheet.py` | Visualization | Comparing batch results |
+| `src/comfy_api/contact_sheet.py` | Visualization (CLI: cr-contact-sheet) | Comparing batch results |
 
 ## 🚦 Workflow
 
 ```
 1. Export workflow from ComfyUI (File -> Export API)
    ↓
-2. comfy-analyze workflows/<name>/workflow.json
+2. cr-analyze workflows/<name>/workflow.json
    ↓
 3. Edit workflow_batch_config.yaml (uncomment parameters)
    ↓
-4. comfy-batch workflows/<name>/configs/<config>.yaml
+4. cr-batch workflows/<name>/configs/<config>.yaml
    ↓
-5. comfy-contact-sheet output/batch_xxx
+5. cr-contact-sheet output/batch_xxx
 
 ## 📁 Repository Layout
 

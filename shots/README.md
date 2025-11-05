@@ -58,7 +58,11 @@ shots/
 
 3. **Run shot batch:**
    ```bash
-   python batch_runner_shots.py shot_batch_config.yaml
+   # Using the packaged CLI
+   cr-shots workflows/<name>/configs/shots.yaml
+
+   # Or via module
+   python -m comfy_api.shots_batch workflows/<name>/configs/shots.yaml
    ```
 
 ## Example Shot
@@ -71,3 +75,8 @@ See `example_shot/` for a template structure (you need to add actual images).
 - Use descriptive names: `shot1_sunset`, `shot2_car_chase`, etc.
 - All shots in this directory will be processed by the batch runner
 - Missing any of the 3 required files = shot will be skipped with a warning
+
+### Configuration tips
+- Configure the ComfyUI input path in your shots config under `shots.comfyui_input_path` (default: `~/comfy/ComfyUI/input`).
+- Set `num_samples` and `seeds_per_sample` in the config to control total runs per shot.
+- Resume is not implemented for shot batches yet; run completes per shot.
