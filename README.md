@@ -153,19 +153,22 @@ cr-video-analyze path/to/video.mp4 \
   --frames 8
 
 # Alibaba Cloud (OpenAI-compatible) — Qwen VL/Omni via Model Studio
+# Singapore region (intl base URL)
 cr-video-analyze path/to/video.mp4 \
-  --provider ali_openai \
-  --model qwen-vl-max \
-  --api-base https://dashscope.aliyuncs.com/compatible-mode/v1 \
+  --provider ali_openai_video \
+  --model qwen3-omni-flash \
+  --api-base https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
   --api-key-env DASHSCOPE_API_KEY \
-  --frames 6
+  --modalities text  # or text,audio
+  --no-frames        # optional: skip frame extraction for speed
 ```
 
 Notes:
 - Stores results as `<video>_analysis.json` by default.
 - Uses `ffprobe`/`ffmpeg` if installed to probe metadata and sample frames.
 - Provider-specific integrations can be added when model docs/keys are available.
-- For Alibaba Cloud Model Studio using the OpenAI Python SDK, install: `pip install -U openai`
+ - For Alibaba Cloud Model Studio using the OpenAI Python SDK, install: `pip install -U openai`
+ - Video is uploaded as a base64 data URL locally (no remote link required).
 
 ### Alibaba Cloud API Smoke Test
 

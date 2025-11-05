@@ -26,6 +26,26 @@ from typing import Dict, Any, List, Optional, Tuple
 from urllib import request, error
 
 
+def load_dotenv_if_present(path: str = ".env") -> None:
+    p = Path(path)
+    if not p.exists():
+        return
+    try:
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            if k and k not in os.environ:
+                os.environ[k] = v
+    except Exception:
+        pass
+
+
 def ffprobe_metadata(video_path: Path) -> Dict[str, Any]:
     try:
         cmd = [
@@ -200,10 +220,157 @@ def analyze_http(video_path: Path, frames: List[Path], prompt: str, **kwargs) ->
     return {"status": status, "response": data}
 
 
+def _b64(data: bytes) -> str:
+    import base64
+    return base64.b64encode(data).decode("ascii")
+
+
+def analyze_ali_openai(video_path: Path, frames: List[Path], prompt: str, **kwargs) -> Dict[str, Any]:
+    """
+    Alibaba Cloud Model Studio via OpenAI-compatible SDK (DashScope compatible mode).
+
+    Args (kwargs):
+      - model: str (required)
+      - base_url: str (default: https://dashscope.aliyuncs.com/compatible-mode/v1)
+      - api_key: str (required via --api-key-env ideally)
+      - timeout: int (unused; SDK handles)
+    """
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        raise RuntimeError("openai SDK not installed. Run: pip install -U openai") from e
+
+    model = kwargs.get("model")
+    if not model:
+        raise ValueError("model is required for provider=ali_openai (e.g., qwen-vl-max)")
+    # Default to Singapore (intl) base URL
+    base_url = kwargs.get("base_url") or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    api_key = kwargs.get("api_key")
+    if not api_key:
+        raise ValueError("api_key is required (use --api-key-env to provide it)")
+
+    client = OpenAI(base_url=base_url, api_key=api_key)
+
+    # Build multimodal content: prompt + a handful of frames as data URLs
+    content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
+    # Limit images to keep payload manageable
+    for fpath in frames[:5]:
+        try:
+            with open(fpath, "rb") as f:
+                data_url = f"data:image/jpeg;base64,{_b64(f.read())}"
+            content.append({"type": "image_url", "image_url": {"url": data_url}})
+        except Exception:
+            continue
+
+    messages = [{"role": "user", "content": content}]
+
+    # Use Chat Completions for compatibility
+    resp = client.chat.completions.create(model=model, messages=messages)
+    out = {
+        "id": getattr(resp, "id", None),
+        "choices": [],
+        "usage": getattr(resp, "usage", None),
+        "model": getattr(resp, "model", model),
+    }
+    try:
+        for ch in resp.choices:
+            msg = getattr(ch, "message", None)
+            out["choices"].append({
+                "index": getattr(ch, "index", None),
+                "finish_reason": getattr(ch, "finish_reason", None),
+                "content": getattr(msg, "content", None) if msg else None,
+                "role": getattr(msg, "role", None) if msg else None,
+            })
+    except Exception:
+        pass
+    return out
+
+
+def analyze_ali_openai_video(video_path: Path, frames: List[Path], prompt: str, **kwargs) -> Dict[str, Any]:
+    """
+    Alibaba Cloud Model Studio via OpenAI-compatible SDK, sending a local video file
+    as a data URL (base64) in a streaming Chat Completions request.
+
+    Args (kwargs):
+      - model: str (required), e.g., qwen3-omni-flash
+      - base_url: str (default: Singapore https://dashscope-intl.aliyuncs.com/compatible-mode/v1)
+      - api_key: str (required)
+      - modalities: List[str] or comma-separated str (default: ["text"])
+      - voice: str (when audio requested)
+      - audio_format: str (e.g., wav) (when audio requested)
+    """
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        raise RuntimeError("openai SDK not installed. Run: pip install -U openai") from e
+
+    model = kwargs.get("model")
+    if not model:
+        raise ValueError("model is required for provider=ali_openai_video (e.g., qwen3-omni-flash)")
+    base_url = kwargs.get("base_url") or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    api_key = kwargs.get("api_key")
+    if not api_key:
+        raise ValueError("api_key is required (use --api-key-env to provide it)")
+
+    # Build video data URL (note: reads the file into memory)
+    mime = "video/mp4" if video_path.suffix.lower() in {".mp4", ".m4v"} else "video/webm"
+    with open(video_path, "rb") as f:
+        data_url = f"data:{mime};base64,{_b64(f.read())}"
+
+    modalities = kwargs.get("modalities") or ["text"]
+    if isinstance(modalities, str):
+        modalities = [m.strip() for m in modalities.split(",") if m.strip()]
+    voice = kwargs.get("voice") or "Cherry"
+    audio_format = kwargs.get("audio_format") or "wav"
+
+    client = OpenAI(base_url=base_url, api_key=api_key)
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "video_url", "video_url": {"url": data_url}},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ],
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+    if modalities:
+        payload["modalities"] = modalities
+        if "audio" in modalities:
+            payload["audio"] = {"voice": voice, "format": audio_format}
+
+    # Stream and accumulate text
+    text_parts: List[str] = []
+    usage_obj = None
+    stream = client.chat.completions.create(**payload)
+    for chunk in stream:
+        try:
+            if chunk.choices:
+                delta = chunk.choices[0].delta
+                if isinstance(delta, dict):
+                    # In some SDK versions, delta may be an object with 'content'
+                    content = delta.get("content") if isinstance(delta, dict) else None
+                    if content:
+                        text_parts.append(str(content))
+                else:
+                    text_parts.append(str(delta))
+            else:
+                usage_obj = getattr(chunk, "usage", None)
+        except Exception:
+            pass
+
+    return {"text": "".join(text_parts), "usage": usage_obj, "model": model}
+
+
 PROVIDERS = {
     "noop": analyze_noop,
     "http": analyze_http,
-    # "openai": analyze_openai,  # to be implemented with provided docs/keys
+    "ali_openai": analyze_ali_openai,
+    "ali_openai_video": analyze_ali_openai_video,
 }
 
 
@@ -217,11 +384,17 @@ def main():
     parser.add_argument("--workdir", type=str, default=None, help="Working directory for extracted frames")
     parser.add_argument("--frames", type=int, default=8, help="Number of frames to sample for context")
     parser.add_argument("--prompt", type=str, default="Provide a structured analysis of the video content (scenes, motion, objects, actions).", help="Instruction for the vision model")
-    parser.add_argument("--api-base", dest="api_base", type=str, default=None, help="Provider base URL (for provider=http)")
+    parser.add_argument("--api-base", dest="api_base", type=str, default=None, help="Provider base URL (for provider=http, or OpenAI-compatible base for ali_openai)")
     parser.add_argument("--api-key-env", dest="api_key_env", type=str, default=None, help="Environment variable containing API key")
     parser.add_argument("--timeout", type=int, default=120, help="HTTP timeout in seconds")
+    parser.add_argument("--model", type=str, default=None, help="Model name (required for ali_openai, e.g., qwen-vl-max)")
+    parser.add_argument("--modalities", type=str, default="text", help="For ali_openai_video: 'text' or 'text,audio'")
+    parser.add_argument("--voice", type=str, default="Cherry", help="For ali_openai_video when audio is requested")
+    parser.add_argument("--audio-format", dest="audio_format", type=str, default="wav", help="For ali_openai_video when audio is requested")
     parser.add_argument("--keep-frames", action="store_true", help="Keep extracted frames on disk")
     parser.add_argument("--metadata-only", action="store_true", help="Skip API call; only write metadata + frame list")
+    parser.add_argument("--dotenv", type=str, default=".env", help="Optional path to .env to load")
+    parser.add_argument("--no-frames", action="store_true", help="Do not extract frames (faster, less context)")
     args = parser.parse_args()
 
     video_path = Path(args.video).expanduser().resolve()
@@ -256,10 +429,18 @@ def main():
         print("   ⚠️ No metadata available (ffprobe missing?)")
 
     # Extract frames for context
-    print("\n🖼️  Extracting frames for context...")
-    duration = meta.get("duration") if isinstance(meta, dict) else None
-    frames = extract_frames(video_path, frames_dir, max(1, args.frames), duration)
-    print(f"   ✓ Extracted {len(frames)} frame(s) → {frames_dir}")
+    frames: List[Path] = []
+    if args.no_frames:
+        print("\n🖼️  Skipping frame extraction (--no-frames)")
+    else:
+        print("\n🖼️  Extracting frames for context...")
+        duration = meta.get("duration") if isinstance(meta, dict) else None
+        frames = extract_frames(video_path, frames_dir, max(1, args.frames), duration)
+        print(f"   ✓ Extracted {len(frames)} frame(s) → {frames_dir}")
+
+    # Optionally load .env
+    if args.dotenv:
+        load_dotenv_if_present(args.dotenv)
 
     # Resolve API key
     api_key = None
@@ -286,6 +467,10 @@ def main():
                 api_base=args.api_base,
                 api_key=api_key,
                 timeout=args.timeout,
+                model=args.model,
+                modalities=args.modalities,
+                voice=args.voice,
+                audio_format=args.audio_format,
             )
         except Exception as e:
             print(f"   ❌ Provider error: {e}")
@@ -326,4 +511,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
