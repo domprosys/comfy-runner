@@ -60,13 +60,23 @@ class WorkflowTypeDetector:
         if self.workflow_type == "light_lora":
             return ["euler", "dpmpp_2m", "res_3m_ode", "res_3s_ode", "deis_2m_ode"]
         elif self.workflow_type == "base":
-            return ["euler", "dpmpp_2m", "dpmpp_2m_sde", "heun", "uni_pc"]
+            # Samplers that work well with 15-30 steps
+            return ["euler", "dpmpp_2m", "dpmpp_2m_sde", "heun", "dpm_2", "uni_pc", "dpmpp_3m_sde"]
         else:  # SNR
             return ["euler", "dpmpp_2m"]
 
     def get_recommended_schedulers(self) -> List[str]:
         """Get recommended schedulers"""
         return ["normal", "karras", "exponential", "bong_tangent"]
+
+    def get_workflow_context(self) -> str:
+        """Get human-readable context about detected workflow"""
+        if self.workflow_type == "light_lora":
+            return f"Light LoRA workflow → Fast generation (4-6 steps), 4-10x speedup over base"
+        elif self.workflow_type == "base":
+            return f"Base model (no LoRA) → Higher steps ({self.step_count}), slower, maximum quality"
+        else:
+            return "SNR-based dynamic scheduling → Adaptive quality/speed tradeoff"
 
 
 def find_sampler_nodes(categories: Dict[str, List[Dict]]) -> List[Dict]:
@@ -93,6 +103,28 @@ def find_lora_nodes(categories: Dict[str, List[Dict]]) -> List[Dict]:
     return lora_params
 
 
+def clean_numeric_value(value: Any) -> Any:
+    """Clean numeric values - round floats that are very close to integers"""
+    if isinstance(value, float):
+        # If float is very close to an integer, convert it
+        if abs(value - round(value)) < 0.0001:
+            return int(round(value))
+        # Otherwise round to reasonable precision
+        return round(value, 2)
+    return value
+
+
+def get_relative_workflow_path(workflow_file: Path, output_dir: Path) -> str:
+    """Calculate relative path from output_dir to workflow_file"""
+    try:
+        # Try to get relative path
+        rel_path = Path(workflow_file).relative_to(output_dir)
+        return str(rel_path)
+    except ValueError:
+        # If not in same tree, use ../workflow.json pattern
+        return f"../{workflow_file.name}"
+
+
 def generate_category2_config(
     workflow_file: Path,
     detector: WorkflowTypeDetector,
@@ -110,6 +142,10 @@ def generate_category2_config(
     samplers = detector.get_recommended_samplers()
     schedulers = detector.get_recommended_schedulers()
 
+    # Calculate relative path for workflow_file
+    output_dir = workflow_file.parent / "configs"
+    workflow_path = get_relative_workflow_path(workflow_file, output_dir)
+
     config = f"""# ============================================================================
 # CATEGORY 2: 🏄 SAMPLER/SCHEDULER SURFING
 # Auto-generated for: {workflow_file.name}
@@ -118,7 +154,9 @@ def generate_category2_config(
 #
 # PURPOSE: Find the best sampler and scheduler combination
 #
-# DETECTED WORKFLOW TYPE: {detector.workflow_type.upper()}
+# DETECTED CHARACTERISTICS:
+# - Type: {detector.workflow_type.upper()}
+# - {detector.get_workflow_context()}
 # - Step count: {detector.step_count}
 # - Has LoRA: {'Yes' if detector.has_lora else 'No'}
 # - Has SNR: {'Yes' if detector.has_snr else 'No'}
@@ -131,7 +169,7 @@ def generate_category2_config(
 #
 # ============================================================================
 
-workflow_file: {workflow_file.name}
+workflow_file: {workflow_path}
 sampling_strategy: grid
 num_samples: 100
 seeds_per_sample: 2
@@ -172,10 +210,11 @@ parameters:
 
     # Steps
     for snode in sampler_nodes:
+        clean_steps = clean_numeric_value(snode['steps_value'])
         config += f"""  sampler_steps_node{snode['node_id']}:
     path: {snode['steps_path']}
     type: values
-    values: [{snode['steps_value']}]
+    values: [{clean_steps}]
 """
 
     # Add other numeric params as fixed
@@ -186,10 +225,11 @@ parameters:
                 continue
             node_id_param = param['path'].split('.')[1]
             safe_name = param['name'].replace('-', '_')
+            clean_value = clean_numeric_value(param['value'])
             config += f"""  {param['class_type'].lower()}_{safe_name}_node{node_id_param}:
     path: {param['path']}
     type: values
-    values: [{param['value']}]
+    values: [{clean_value}]
 """
 
     # Add LoRA strengths if present
@@ -198,10 +238,11 @@ parameters:
         config += "\n  # LoRA strengths\n"
         for lora in lora_params:
             node_id_lora = lora['path'].split('.')[1]
+            clean_lora = clean_numeric_value(lora['value'])
             config += f"""  lora_strength_node{node_id_lora}:
     path: {lora['path']}
     type: values
-    values: [{lora['value']}]
+    values: [{clean_lora}]
 """
 
     # Add seeds
