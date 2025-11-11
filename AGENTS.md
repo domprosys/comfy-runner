@@ -39,10 +39,15 @@ This document provides comprehensive context for AI coding assistants working on
    - Injects shot-specific data into workflow and organizes outputs per shot
 
 5. **Contact Sheet Generator** (`src/comfy_api/contact_sheet.py` → CLI: `cr-contact-sheet`)
-6. **Video Analyzer (External)** (`src/comfy_api/video_analyzer.py` → CLI: `cr-video-analyze`)
-   - Analyzes an input video with external vision APIs (scaffold)
-   - Minimal deps (ffprobe/ffmpeg optional); pluggable providers
    - Creates interactive HTML visualization of batch results (ffmpeg required)
+
+6. **Video Analyzer (External)** (`src/comfy_api/video_analyzer.py` → CLI: `cr-video-analyze`)
+   - Analyzes video content using external vision APIs
+   - Extracts video metadata (resolution, codec, fps, duration, bitrate)
+   - Samples frames for context using ffmpeg
+   - Pluggable provider system (noop, http, ali_openai, ali_openai_video)
+   - Minimal dependencies (stdlib + optional ffprobe/ffmpeg)
+   - Outputs structured JSON with analysis results
 
 ---
 
@@ -194,6 +199,217 @@ shots/shot1/prompt.txt + images
             shot2/runs/{run_id}/video.mp4
             ...
 ```
+
+### Video Analysis Workflow
+
+```
+video.mp4 → comfy_api.video_analyzer (cr-video-analyze)
+                    ↓
+            Extract metadata (ffprobe)
+            Sample frames (ffmpeg)
+                    ↓
+            Provider-specific analysis:
+              - noop: scaffold/testing
+              - http: generic multipart POST
+              - ali_openai: OpenAI SDK with frames
+              - ali_openai_video: OpenAI SDK with video data URL
+                    ↓
+            video_analysis.json
+              - input metadata
+              - sampled frames list
+              - provider response
+              - text summary (if available)
+```
+
+---
+
+## Video Analysis Feature
+
+### Overview
+
+The video analyzer (`src/comfy_api/video_analyzer.py`) provides AI-powered video content analysis using external vision APIs. It's designed to be dependency-light and provider-agnostic.
+
+### Provider Architecture
+
+**Pluggable Provider System:**
+- Each provider is a function: `analyze_<name>(video_path, frames, prompt, **kwargs)`
+- Registered in `PROVIDERS` dictionary
+- Returns structured dict with analysis results
+
+**Available Providers:**
+
+1. **`noop`** - No-op scaffold for testing
+   - Returns basic metadata about frames and prompt
+   - No external API calls
+   - Used for development/testing
+
+2. **`http`** - Generic HTTP multipart POST
+   - Sends video file + up to 5 frames
+   - Configurable endpoint, API key, timeout
+   - Expects JSON response
+   - Use for custom/self-hosted APIs
+
+3. **`ali_openai`** - Alibaba Cloud Model Studio (frame-based)
+   - Uses OpenAI Python SDK in compatibility mode
+   - Sends up to 5 frames as base64 data URLs
+   - Works with qwen-vl-max, qwen-vl-plus models
+   - Default base: Singapore (intl) region
+
+4. **`ali_openai_video`** - Alibaba Cloud Model Studio (native video)
+   - Uploads entire video as base64 data URL
+   - Streaming response with text/audio modalities
+   - Works with qwen3-omni-flash model
+   - **Size limit: ~10MB** (API restriction)
+
+### Prompting Strategy
+
+**Basic Prompt (default):**
+```
+Provide a structured analysis of the video content (scenes, motion, objects, actions).
+```
+
+**Enhanced "Blind Film Director" Prompt:**
+```
+Provide a structured analysis of the video content (scenes, motion, objects, actions),
+like you are talking to a brilliant film director who has gone blind, so include as
+many cinematic details and words as possible.
+```
+
+The enhanced prompt produces significantly richer, more descriptive output with cinematic language and visual details.
+
+### Known Issues & Limitations
+
+**1. Video Size Limit (ali_openai_video)**
+- Maximum ~10MB for base64 data URL uploads
+- API error: "Exceeded limit on max bytes per data-uri item: 10485760"
+- Workaround needed for larger videos (compression, chunking, or frame-based fallback)
+
+**2. Streaming Output Bug (ali_openai_video)**
+- Raw `ChoiceDelta` objects can leak into text output
+- Should extract `.content` field cleanly
+- Affects output formatting but not core functionality
+- Example: `ChoiceDelta(content='A', ...)` instead of just `'A'`
+
+**3. Frame Extraction Dependencies**
+- Requires `ffprobe` for metadata extraction
+- Requires `ffmpeg` for frame sampling
+- Gracefully degrades if missing (no frames extracted)
+- Can use `--no-frames` to skip extraction entirely
+
+### Test Results (2025-11-06)
+
+Tested on three videos with `ali_openai_video` provider:
+
+1. **ComfyUI_00262_.mp4** (1.5MB, 1280x720) - ✅ SUCCESS
+   - Used enhanced "blind film director" prompt
+   - Rich cinematic description with 492 tokens
+   - Described OMV gas station scene, mountains, person, atmosphere
+   - Tokens: 4664 prompt (4614 video), 492 completion
+
+2. **vlad-omv.mp4** (1.6MB, 1280x720) - ⚠️ PARTIAL SUCCESS
+   - Basic prompt used
+   - Analysis completed but with streaming bug
+   - Raw ChoiceDelta objects in output instead of clean text
+   - Tokens: 4763 prompt (4614 video + 127 audio), 115 completion
+
+3. **scena1.mp4** (10MB, 1920x1080) - ❌ FAILED
+   - Exceeded 10MB API limit
+   - Error code 400: max bytes per data-uri exceeded
+   - Need alternative approach for larger videos
+
+### Usage Examples
+
+**Basic analysis with noop provider:**
+```bash
+cr-video-analyze video.mp4 --provider noop --frames 8 --keep-frames
+```
+
+**Generic HTTP endpoint:**
+```bash
+cr-video-analyze video.mp4 \
+  --provider http \
+  --api-base https://api.example.com/analyze \
+  --api-key-env EXTERNAL_API_KEY \
+  --frames 8
+```
+
+**Alibaba Cloud (Singapore region):**
+```bash
+cr-video-analyze video.mp4 \
+  --provider ali_openai_video \
+  --model qwen3-omni-flash \
+  --api-base https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
+  --api-key-env DASHSCOPE_API_KEY \
+  --modalities text \
+  --no-frames
+```
+
+**Enhanced cinematic prompt:**
+```bash
+cr-video-analyze video.mp4 \
+  --provider ali_openai_video \
+  --model qwen3-omni-flash \
+  --prompt "Provide a structured analysis of the video content (scenes, motion, objects, actions), like you are talking to a brilliant film director who has gone blind, so include as many cinematic details and words as possible."
+```
+
+### Output Format
+
+**JSON Structure:**
+```json
+{
+  "input": {
+    "video_path": "/path/to/video.mp4",
+    "size_bytes": 1498943,
+    "metadata": {
+      "width": 1280,
+      "height": 720,
+      "codec": "h264",
+      "fps": 16.0,
+      "duration": 5.062,
+      "bitrate": "2368928"
+    },
+    "sampled_frames": ["frame_0001.jpg", "..."]
+  },
+  "provider": {
+    "name": "ali_openai_video",
+    "api_base": "https://..."
+  },
+  "prompt": "...",
+  "analysis": {
+    "text": "Detailed analysis...",
+    "usage": {...},
+    "model": "qwen3-omni-flash"
+  },
+  "timestamp": "2025-11-06T00:23:56"
+}
+```
+
+### Future Enhancements
+
+1. **Automatic size detection and fallback**
+   - Check video size before upload
+   - Fall back to frame-based analysis for large videos
+   - Or compress video on-the-fly
+
+2. **Fix streaming bug**
+   - Clean ChoiceDelta parsing in ali_openai_video
+   - Extract only content fields from streaming chunks
+
+3. **Additional providers**
+   - OpenAI GPT-4 Vision
+   - Google Gemini Vision
+   - Anthropic Claude 3 Vision
+   - Local models (LLaVA, etc.)
+
+4. **Batch video analysis**
+   - Analyze all videos in a batch run output
+   - Compare analyses across parameter variations
+   - Automated quality assessment
+
+5. **Prompt templates**
+   - Preset prompts for different use cases
+   - Technical analysis, creative description, quality assessment
+   - Per-provider optimized prompts
 
 ---
 
@@ -502,12 +718,14 @@ What we delivered:
 6. ✅ Contact sheet visualization
 7. ✅ Resume capability
 8. ✅ Readable parameter names
-9. ✅ Comprehensive documentation
+9. ✅ External video analyzer (pluggable providers)
+10. ✅ Comprehensive documentation
 
 Current status:
 - User has batch running on remote server
 - Testing WAN video generation parameters
 - Exploring shot-based system for multiple scenes
+- Video analysis integration with Alibaba Cloud Model Studio
 - Ready for iterative refinement based on results
 
 ---
@@ -564,7 +782,7 @@ Before starting work, consider:
 
 ---
 
-**Last Updated:** 2025-11-05
+**Last Updated:** 2025-11-11
 **Project Status:** Active development, deployed on user's remote server
 **Contact:** See parent README.md for user documentation
 
