@@ -1,0 +1,233 @@
+# ============================================================================
+# QUICK TEST: Category 2 Sampler/Scheduler Surfing (Minimal)
+# ============================================================================
+#
+# PURPOSE: Fast test to verify the system works before running full batches
+#
+# WHAT THIS DOES:
+#   - Tests 3 samplers × 2 schedulers × 2 seeds = 12 videos
+#   - Estimated time: 20-40 minutes (depends on hardware)
+#   - All parameters pre-filled (ready to run!)
+#
+# WHEN TO USE:
+#   - First time using comfy-runner
+#   - After updating ComfyUI or installing RES4LYF
+#   - To verify workflow compatibility
+#   - As a baseline before running full Category 2
+#
+# USAGE:
+#   cr-batch workflows/wan2_14B_flf2v/configs/example_category2_quick_test.yaml
+#
+# NEXT STEPS:
+#   1. If this works: Run full category2_sampler_surfing_template.yaml
+#   2. If it fails: Check ComfyUI logs for errors
+#
+# ============================================================================
+
+workflow_file: ../workflow.json
+sampling_strategy: grid
+num_samples: 100  # Ignored for grid
+seeds_per_sample: 2  # 2 seeds per combo
+
+parameters:
+  # ==========================================================================
+  # MINIMAL SAMPLER/SCHEDULER TEST
+  # ==========================================================================
+
+  # Just 3 samplers (baseline + 1 RES4LYF)
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values:
+      - "euler"           # Baseline
+      - "dpmpp_2m"        # Popular standard
+      - "res_3m_ode"      # RES4LYF optimized for ~3 steps
+
+  # Just 2 schedulers (most common)
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values:
+      - "normal"          # Standard
+      - "karras"          # Often best
+
+  # Mirror for node 58
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ["euler", "dpmpp_2m", "res_3m_ode"]
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ["normal", "karras"]
+
+  # ==========================================================================
+  # FIXED PARAMETERS (Sensible defaults)
+  # ==========================================================================
+
+  # Shift
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [5]
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [5]
+
+  # Steps (4 for Light LoRAs)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # CFG
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [1.5]
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [1.5]
+
+  # Step ranges
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Video settings
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # LoRA strengths
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  # Random seeds
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+# ==========================================================================
+# OUTPUT CONFIGURATION
+# ==========================================================================
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_s{sampler_name}_sch{scheduler}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ==========================================================================
+# WHAT TO EXPECT
+# ==========================================================================
+#
+# This will generate 12 videos:
+#
+# 1. euler + normal (seed A)
+# 2. euler + normal (seed B)
+# 3. euler + karras (seed A)
+# 4. euler + karras (seed B)
+# 5. dpmpp_2m + normal (seed A)
+# 6. dpmpp_2m + normal (seed B)
+# 7. dpmpp_2m + karras (seed A)
+# 8. dpmpp_2m + karras (seed B)
+# 9. res_3m_ode + normal (seed A)
+# 10. res_3m_ode + normal (seed B)
+# 11. res_3m_ode + karras (seed A)
+# 12. res_3m_ode + karras (seed B)
+#
+# Each video should take 1-3 minutes to generate (depends on GPU).
+# Total time: 20-40 minutes
+#
+# ==========================================================================
+
+# ==========================================================================
+# TROUBLESHOOTING
+# ==========================================================================
+#
+# If you get errors about missing samplers:
+#   1. Check that RES4LYF is installed in ComfyUI custom_nodes/
+#   2. Restart ComfyUI
+#   3. Check ComfyUI console for import errors
+#   4. If res_3m_ode doesn't work, remove it from the values list
+#
+# If videos look bad:
+#   - This is expected with default settings!
+#   - The point is to TEST the system, not get perfect results
+#   - Move on to full Category 2 surfing to find optimal settings
+#
+# If generation is very slow:
+#   - First run always takes longer (model loading)
+#   - Subsequent runs will be faster
+#   - Consider reducing resolution for testing:
+#     wanfirstlastframetovideo_width: {values: [640]}
+#     wanfirstlastframetovideo_height: {values: [360]}
+#
+# ==========================================================================

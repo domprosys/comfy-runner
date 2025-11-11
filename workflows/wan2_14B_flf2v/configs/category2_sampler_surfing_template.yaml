@@ -1,0 +1,232 @@
+# ============================================================================
+# CATEGORY 2: 🏄 SAMPLER/SCHEDULER SURFING
+# ============================================================================
+#
+# PURPOSE: Find the best sampler and scheduler combination for your workflow
+#
+# WHAT VARIES:
+#   - Sampler (5 options): euler, dpmpp_2m, res_3m_ode, res_3s_ode, deis_2m_ode
+#   - Scheduler (4 options): normal, karras, exponential, bong_tangent
+#
+# WHAT'S FIXED:
+#   - All numeric parameters (CFG, shift, steps, LoRA strengths, etc.)
+#   - Seeds (2 per combo for consistency check)
+#   - Resolution, FPS, video length
+#
+# EXPECTED OUTPUT:
+#   5 samplers × 4 schedulers × 2 seeds = 40 videos
+#   Estimated time: 1-2 hours (depends on hardware)
+#
+# USAGE:
+#   cr-batch workflows/wan2_14B_flf2v/configs/category2_sampler_surfing_template.yaml
+#
+# NEXT STEPS:
+#   1. Generate contact sheet: cr-contact-sheet output/batch_*
+#   2. Identify winner combo (e.g., "res_3m_ode + karras")
+#   3. Use winners in Category 3 (parameter search)
+#
+# ============================================================================
+
+workflow_file: ../workflow.json
+sampling_strategy: grid  # Exhaustive testing of all combinations
+num_samples: 100  # Ignored for grid strategy
+seeds_per_sample: 2  # 2 seeds per combo to verify consistency
+
+parameters:
+  # ==========================================================================
+  # SAMPLER/SCHEDULER EXPLORATION (High Noise Model - Node 57)
+  # ==========================================================================
+
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values:
+      # Baseline samplers
+      - "euler"           # Standard, reliable
+      - "dpmpp_2m"        # Popular for quality
+
+      # RES4LYF samplers optimized for 4-step workflows
+      - "res_3m_ode"      # 3-step multistep ODE (deterministic)
+      - "res_3s_ode"      # 3-step singlestep ODE (deterministic)
+      - "deis_2m_ode"     # 2-step exponential integrator ODE
+
+      # To test more samplers, add them here:
+      # - "res_5s_ode"    # 5-step singlestep
+      # - "euler_cfg_pp"  # Euler with CFG++ post-processing
+      # - "dpmpp_2m_sde"  # Stochastic variant
+
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values:
+      - "normal"          # Standard baseline
+      - "karras"          # Often best for quality
+      - "exponential"     # Good detail preservation
+      - "bong_tangent"    # New RES4LYF scheduler
+
+      # To test more schedulers, add them here:
+      # - "simple"        # Linear schedule
+      # - "beta57"        # RES4LYF beta variant
+
+  # ==========================================================================
+  # MIRROR SETTINGS FOR LOW NOISE MODEL (Node 58)
+  # ==========================================================================
+
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ["euler", "dpmpp_2m", "res_3m_ode", "res_3s_ode", "deis_2m_ode"]
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ["normal", "karras", "exponential", "bong_tangent"]
+
+  # ==========================================================================
+  # FIXED PARAMETERS (Sensible defaults)
+  # ==========================================================================
+
+  # Shift (optimal for most models)
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [5]
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [5]
+
+  # Steps (fixed at 4 for Light LoRAs)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # CFG (moderate default)
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [1.5]
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [1.5]
+
+  # Step ranges (as designed for Light LoRAs)
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Video settings (fixed for consistency)
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # LoRA strengths (recommended default for LightX2V)
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  # Random seeds (2 different seeds for consistency check)
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+# ==========================================================================
+# OUTPUT CONFIGURATION
+# ==========================================================================
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_s{sampler_name}_sch{scheduler}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ==========================================================================
+# ANALYSIS TIPS
+# ==========================================================================
+#
+# After batch completes:
+#
+# 1. Generate contact sheet:
+#    cr-contact-sheet output/batch_YYYY-MM-DD_HH-MM-SS/
+#
+# 2. Open in browser and sort by quality
+#
+# 3. Identify patterns:
+#    - Which sampler gives best quality?
+#    - Which scheduler works best with each sampler?
+#    - Are ODE variants (_ode) more consistent?
+#
+# 4. Note winners for Category 3 (parameter search):
+#    - Best sampler (e.g., "res_3m_ode")
+#    - Best scheduler (e.g., "karras")
+#
+# 5. Optional - Check generation times:
+#    import pandas as pd
+#    df = pd.read_csv('output/batch_*/metadata.csv')
+#    print(df.groupby('sampler_name')['generation_time'].mean())
+#
+# ==========================================================================

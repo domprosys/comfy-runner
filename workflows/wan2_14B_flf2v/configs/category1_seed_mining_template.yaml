@@ -1,0 +1,262 @@
+# ============================================================================
+# CATEGORY 1: 🎲 SEED MINING
+# ============================================================================
+#
+# PURPOSE: Generate variations with optimal settings to find "hero seeds"
+#
+# WHEN TO USE:
+#   - AFTER Categories 2 & 3 (you know the best everything!)
+#   - For final production renders
+#   - To build a seed library for this prompt/scene
+#
+# WHAT VARIES:
+#   - Random seed ONLY
+#
+# WHAT'S FIXED:
+#   - Sampler (winner from Category 2)
+#   - Scheduler (winner from Category 2)
+#   - ALL parameters (optimal values from Category 3)
+#
+# EXPECTED OUTPUT:
+#   20 seeds × 1 combo = 20 videos
+#   Estimated time: 30-60 minutes
+#
+# USAGE:
+#   1. EDIT THIS FILE: Fill in ALL your winners from Categories 2 & 3
+#   2. cr-batch workflows/wan2_14B_flf2v/configs/category1_seed_mining_template.yaml
+#
+# NEXT STEPS:
+#   1. Generate contact sheet
+#   2. Sort by quality
+#   3. Record seed numbers from best videos' params.json
+#   4. Use those "hero seeds" for production
+#
+# ============================================================================
+
+workflow_file: ../workflow.json
+sampling_strategy: grid  # Not really needed since only seed varies
+num_samples: 100  # Ignored
+seeds_per_sample: 20  # ← Number of seed variations to generate
+
+parameters:
+  # ==========================================================================
+  # ⚠️  EDIT HERE: ADD YOUR WINNERS FROM CATEGORY 2 (Sampler/Scheduler)
+  # ==========================================================================
+
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "res_3m_ode")
+
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "karras")
+
+  # Mirror for node 58
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  # ==========================================================================
+  # ⚠️  EDIT HERE: ADD YOUR OPTIMAL VALUES FROM CATEGORY 3 (Parameters)
+  # ==========================================================================
+
+  # CFG - Optimal value from parameter search
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [EDIT_ME]  # ← REPLACE with optimal (e.g., 1.75)
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [EDIT_ME]  # ← Same as above
+
+  # Shift - Optimal value from parameter search
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [EDIT_ME]  # ← REPLACE with optimal (e.g., 5.5)
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [EDIT_ME]  # ← Same as above
+
+  # LoRA Strength - Optimal value from parameter search
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [EDIT_ME]  # ← REPLACE with optimal (e.g., 2.0)
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [EDIT_ME]  # ← Same as above
+
+  # ==========================================================================
+  # FIXED PARAMETERS (Standard for Light LoRAs)
+  # ==========================================================================
+
+  # Steps (fixed at 4 for Light LoRAs)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # Step ranges
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Video settings
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # ==========================================================================
+  # SEED VARIATION (This is what changes!)
+  # ==========================================================================
+
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed  # Generates 20 different random seeds
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+# ==========================================================================
+# OUTPUT CONFIGURATION
+# ==========================================================================
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_seed{sampler_noise_seed}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ==========================================================================
+# CUSTOMIZATION OPTIONS
+# ==========================================================================
+#
+# Adjust number of seeds:
+#   seeds_per_sample: 50   # More variations (slower)
+#   seeds_per_sample: 10   # Fewer variations (faster)
+#   seeds_per_sample: 100  # Lots of variations (for building seed library)
+#
+# After finding hero seeds, you can "re-mine" around them:
+#   If seed 847392 was amazing, test similar seeds:
+#   847390, 847391, 847392, 847393, 847394, etc.
+#   (Seeds close together often have similar characteristics)
+#
+# ==========================================================================
+
+# ==========================================================================
+# ANALYSIS TIPS
+# ==========================================================================
+#
+# After batch completes:
+#
+# 1. Generate contact sheet:
+#    cr-contact-sheet output/batch_*
+#
+# 2. Sort videos by quality (manually or via video analysis)
+#
+# 3. Record hero seeds:
+#    For your best 3-5 videos, open their params.json:
+#
+#    cat output/batch_*/runs/0007_seed847392/params.json | grep noise_seed
+#
+#    Write down the seed numbers!
+#
+# 4. Build a seed library document:
+#    Prompt: "OMV gas station scene"
+#    Sampler: res_3m_ode + karras
+#    Hero seeds: 847392, 923847, 102948
+#    Notes: 847392 has warm lighting, 923847 has dramatic clouds
+#
+# 5. Understand variation patterns:
+#    - Are all seeds similar? → Stable model, consistent output
+#    - Wide variation? → Model is sensitive to seed
+#    - Certain aesthetic patterns? → Some seeds favor certain styles
+#
+# 6. Use hero seeds in production:
+#    When you need a guaranteed good result, use a known hero seed!
+#
+# ==========================================================================
+
+# ==========================================================================
+# EXAMPLE FILLED CONFIG
+# ==========================================================================
+#
+# Here's what a completed config might look like after Categories 2 & 3:
+#
+# sampler_name: {values: ["res_3m_ode"]}
+# scheduler: {values: ["karras"]}
+# sampler_cfg: {values: [1.75]}
+# sampling_shift: {values: [5.5]}
+# lora_strength_model: {values: [2.0]}
+# seeds_per_sample: 20
+#
+# This would generate 20 videos with identical settings but different seeds,
+# using your proven optimal configuration from the previous categories.
+#
+# ==========================================================================
