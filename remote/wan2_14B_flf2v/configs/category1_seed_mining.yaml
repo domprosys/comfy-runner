@@ -1,0 +1,47 @@
+# ============================================================================
+# CATEGORY 1: 🎲 SEED MINING
+# Auto-generated for: workflow.json
+# ============================================================================
+#
+# PURPOSE: Generate variations to find hero seeds
+#
+# USAGE:
+#   1. Fill in ALL winners from Categories 2 & 3
+#   2. cr-batch <path-to-this-file>
+#
+# ============================================================================
+
+workflow_file: workflow.json
+sampling_strategy: grid
+num_samples: 100
+seeds_per_sample: 20
+
+parameters:
+  # ⚠️ EDIT HERE: Add winners from Category 2
+  sampler_name:
+    path: nodes.EDIT_ME.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]
+
+  scheduler:
+    path: nodes.EDIT_ME.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]
+
+  # ⚠️ EDIT HERE: Add optimal values from Category 3
+
+  # Seeds (these will vary)
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_seed{seed_node...}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2

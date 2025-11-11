@@ -1,0 +1,143 @@
+# ============================================================================
+# CATEGORY 2: 🏄 SAMPLER/SCHEDULER SURFING
+# Auto-generated for: workflow.json
+# Workflow type: LIGHT_LORA
+# ============================================================================
+#
+# PURPOSE: Find the best sampler and scheduler combination
+#
+# DETECTED WORKFLOW TYPE: LIGHT_LORA
+# - Step count: 4
+# - Has LoRA: Yes
+# - Has SNR: No
+#
+# EXPECTED OUTPUT:
+#   5 samplers × 4 schedulers × 2 seeds = 40 videos
+#
+# USAGE:
+#   cr-batch <path-to-this-file>
+#
+# ============================================================================
+
+workflow_file: workflow.json
+sampling_strategy: grid
+num_samples: 100
+seeds_per_sample: 2
+
+parameters:
+  # Sampler selection
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values: ['euler', 'dpmpp_2m', 'res_3m_ode', 'res_3s_ode', 'deis_2m_ode']
+
+  # Scheduler selection
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values: ['normal', 'karras', 'exponential', 'bong_tangent']
+
+  # Mirror for node 58
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ['euler', 'dpmpp_2m', 'res_3m_ode', 'res_3s_ode', 'deis_2m_ode']
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ['normal', 'karras', 'exponential', 'bong_tangent']
+
+  # Fixed parameters
+  sampler_steps_node57:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+  modelsamplingsd3_shift_node54:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [5]
+  modelsamplingsd3_shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [5]
+  ksampleradvanced_cfg_node57:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [1]
+  ksampleradvanced_start_at_step_node57:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+  ksampleradvanced_end_at_step_node57:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+  ksampleradvanced_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [1]
+  ksampleradvanced_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+  ksampleradvanced_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+  createvideo_fps_node60:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+  wanfirstlastframetovideo_width_node67:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+  wanfirstlastframetovideo_height_node67:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+  wanfirstlastframetovideo_length_node67:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+  wanfirstlastframetovideo_batch_size_node67:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # LoRA strengths
+  lora_strength_node91:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [2]
+  lora_strength_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [2]
+
+  # Random seeds
+  seed_node57:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+  seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_s{sampler_name}_sch{scheduler}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2

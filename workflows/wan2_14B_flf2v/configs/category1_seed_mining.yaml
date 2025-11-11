@@ -1,0 +1,113 @@
+# ============================================================================
+# CATEGORY 1: 🎲 SEED MINING
+# Auto-generated for: workflow.json
+# ============================================================================
+#
+# PURPOSE: Generate variations to find hero seeds
+#
+# USAGE:
+#   1. Fill in ALL winners from Categories 2 & 3
+#   2. cr-batch <path-to-this-file>
+#
+# ============================================================================
+
+workflow_file: workflow.json
+sampling_strategy: grid
+num_samples: 100
+seeds_per_sample: 20
+
+parameters:
+  # ⚠️ EDIT HERE: Add winners from Category 2
+  sampler_name:
+    path: nodes.EDIT_ME.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]
+
+  scheduler:
+    path: nodes.EDIT_ME.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]
+
+  # ⚠️ EDIT HERE: Add optimal values from Category 3
+  shift_node54:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  cfg_node57:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  start_at_step_node57:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  end_at_step_node57:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  fps_node60:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  width_node67:
+    path: nodes.67.inputs.width
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  height_node67:
+    path: nodes.67.inputs.height
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  length_node67:
+    path: nodes.67.inputs.length
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  batch_size_node67:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  lora_strength_node91:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+  lora_strength_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [EDIT_ME]  # Replace with optimal value
+
+  # Seeds (these will vary)
+  seed_node57:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+  seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_seed{seed_node...}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2

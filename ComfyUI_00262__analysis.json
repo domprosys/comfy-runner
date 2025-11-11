@@ -1,0 +1,43 @@
+{
+  "input": {
+    "video_path": "/media/alex/ai/comfy-runner/ComfyUI_00262_.mp4",
+    "size_bytes": 1498943,
+    "metadata": {
+      "width": 1280,
+      "height": 720,
+      "codec": "h264",
+      "fps": 16.0,
+      "duration": 5.062012,
+      "bitrate": "2368928"
+    },
+    "sampled_frames": []
+  },
+  "provider": {
+    "name": "ali_openai_video",
+    "api_base": null
+  },
+  "prompt": "Provide a structured analysis of the video content (scenes, motion, objects, actions), like you are talking to a brilliant film director who has gone blind, so include as many cinematic details and words as possible.",
+  "analysis": {
+    "text": "Ah, let's dive into this visual narrative. Picture this: a serene, sun-drenched day, the sky a brilliant canvas of azure, dotted with fluffy, cotton-like clouds. The scene opens with a striking signpost, a beacon of modernity amidst nature's embrace. It's a bold, white rectangle, crowned with a vibrant blue logo—a stylized 'P' that seems to dance with energy. Below it, the letters \"OMV\" stand out in a deep, commanding blue, while a red band at the bottom proudly displays \"VIVA\" in crisp white. This signpost is the heart of the frame, a silent storyteller against a backdrop of towering evergreens, their dark green needles contrasting beautifully with the sky.\n\nAs the camera pans, the scene shifts to a bustling gas station, a hub of activity nestled in a picturesque landscape. The station is a blend of functionality and design, with a sleek canopy overhead and a modern building in the background. The building's facade is a mix of red and white, with large glass windows that reflect the vibrant surroundings. The gas pumps, labeled \"MAXX Motion,\" stand ready to serve, their green and white signs a nod to the brand's identity.\n\nIn the foreground, a man stands beside a sleek, dark-colored car. He's dressed in a beige jacket over a gray shirt, his dark hair and beard adding to his composed demeanor. His gaze is directed towards the horizon, where majestic mountains rise, their peaks touching the sky. The mountains, with their rugged beauty, add a sense of grandeur to the scene, their presence a constant reminder of nature's majesty.\n\nThe man's posture is relaxed yet attentive, suggesting he's taking a moment to appreciate the view or perhaps contemplating his next move. The car beside him is a testament to modern design, its smooth lines and dark finish reflecting the sunlight. The gas station, with its array of pumps and the convenience store in the background, hints at the transient nature of travel, a place where journeys pause and refuel.\n\nThe overall atmosphere is one of calm and purpose. The man, the car, the gas station, and the natural beauty of the mountains all come together in a harmonious composition. It's a moment frozen in time, a snapshot of life's journey, where the mundane meets the majestic. The scene invites the viewer to pause, to reflect, and to appreciate the beauty in the everyday.",
+    "usage": {
+      "completion_tokens": 492,
+      "prompt_tokens": 4664,
+      "total_tokens": 5156,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": null,
+        "rejected_prediction_tokens": null,
+        "text_tokens": 492
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": null,
+        "video_tokens": 4614,
+        "text_tokens": 50
+      }
+    },
+    "model": "qwen3-omni-flash"
+  },
+  "timestamp": "2025-11-06T00:23:56"
+}

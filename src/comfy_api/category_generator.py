@@ -188,19 +188,19 @@ parameters:
     values: {schedulers}
 """
 
-    # Add additional sampler nodes if found
+    # Add additional sampler nodes if found (linked to primary node)
     for i, snode in enumerate(sampler_nodes[1:], start=2):
         config += f"""
-  # Mirror for node {snode['node_id']}
+  # Mirror for node {snode['node_id']} (linked to primary)
   sampler_name_node{snode['node_id']}:
     path: nodes.{snode['node_id']}.inputs.sampler_name
-    type: values
-    values: {samplers}
+    type: linked
+    source: sampler_name
 
   scheduler_node{snode['node_id']}:
     path: nodes.{snode['node_id']}.inputs.scheduler
-    type: values
-    values: {schedulers}
+    type: linked
+    source: scheduler
 """
 
     # Add fixed parameters
@@ -280,6 +280,10 @@ def generate_category3_config(
 ) -> str:
     """Generate Category 3 (Parameter Search) config"""
 
+    # Calculate relative path for workflow_file
+    output_dir = workflow_file.parent / "configs"
+    workflow_path = get_relative_workflow_path(workflow_file, output_dir)
+
     config = f"""# ============================================================================
 # CATEGORY 3: 🔬 PARAMETER SEARCH (Sobol Strategy)
 # Auto-generated for: {workflow_file.name}
@@ -293,7 +297,7 @@ def generate_category3_config(
 #
 # ============================================================================
 
-workflow_file: {workflow_file.name}
+workflow_file: {workflow_path}
 sampling_strategy: sobol
 num_samples: 50
 seeds_per_sample: 2
@@ -384,6 +388,10 @@ def generate_category1_config(
 ) -> str:
     """Generate Category 1 (Seed Mining) config"""
 
+    # Calculate relative path for workflow_file
+    output_dir = workflow_file.parent / "configs"
+    workflow_path = get_relative_workflow_path(workflow_file, output_dir)
+
     config = f"""# ============================================================================
 # CATEGORY 1: 🎲 SEED MINING
 # Auto-generated for: {workflow_file.name}
@@ -397,7 +405,7 @@ def generate_category1_config(
 #
 # ============================================================================
 
-workflow_file: {workflow_file.name}
+workflow_file: {workflow_path}
 sampling_strategy: grid
 num_samples: 100
 seeds_per_sample: 20

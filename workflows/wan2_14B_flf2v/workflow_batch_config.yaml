@@ -1,0 +1,135 @@
+# ComfyUI Batch Configuration
+# Auto-generated from: workflow.json
+
+workflow_file: workflows/wan2_14B_flf2v/workflow.json
+sampling_strategy: sobol
+num_samples: 50
+seeds_per_sample: 2
+parameters:
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: linear
+    min: 3
+    max: 10
+    step: 1
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: linear
+    min: 3
+    max: 10
+    step: 1
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: linear
+    min: 2
+    max: 9
+    step: 1
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: linear
+    min: 1
+    max: 6
+    step: 1
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: linear
+    min: 1
+    max: 5
+    step: 1
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: linear
+    min: 1
+    max: 7
+    step: 1
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: linear
+    min: 2
+    max: 9
+    step: 1
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: linear
+    min: 1
+    max: 6
+    step: 1
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: linear
+    min: 1
+    max: 7
+    step: 1
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: linear
+    min: 5000
+    max: 15000
+    step: 1000
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: linear
+    min: 14
+    max: 44
+    step: 5
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: linear
+    min: 640
+    max: 1920
+    step: 128
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: linear
+    min: 360
+    max: 1080
+    step: 72
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: linear
+    min: 60
+    max: 181
+    step: 12
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: linear
+    min: 1
+    max: 6
+    step: 1
+  unet_weight_dtype:
+    path: nodes.37.inputs.weight_dtype
+    type: continuous
+    min: 0.0
+    max: 3.0
+  unet_weight_dtype_node56:
+    path: nodes.56.inputs.weight_dtype
+    type: continuous
+    min: 0.0
+    max: 3.0
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: continuous
+    min: 0.0
+    max: 3.0
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: continuous
+    min: 0.0
+    max: 3.0
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}'
+  save_params_json: true
+  save_metadata_csv: true
+resume:
+  enabled: true
+  skip_existing: true
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
