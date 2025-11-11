@@ -1,0 +1,290 @@
+# ============================================================================
+# CATEGORY 3: 🔬 PARAMETER SEARCH (Sobol Strategy)
+# ============================================================================
+#
+# PURPOSE: Efficiently explore high-dimensional parameter space using Sobol sampling
+#
+# WHEN TO USE:
+#   - AFTER Category 2 (you know the best sampler/scheduler)
+#   - When varying 4+ parameters
+#   - When you want efficient coverage without exhaustive grid
+#   - When grid search would produce too many videos
+#
+# WHAT VARIES:
+#   - sampler_cfg (1.0 → 3.0, continuous)
+#   - sampling_shift (3 → 7, continuous)
+#   - lora_strength_model (0.5 → 3.0, continuous)
+#
+# WHAT'S FIXED:
+#   - Sampler (EDIT BELOW with winner from Category 2!)
+#   - Scheduler (EDIT BELOW with winner from Category 2!)
+#   - Seeds (2 per sample)
+#
+# SOBOL ADVANTAGE:
+#   - 50 samples × 2 seeds = 100 videos (vs 300 with grid!)
+#   - Better space coverage than random sampling
+#   - Good for understanding parameter interactions
+#
+# EXPECTED OUTPUT:
+#   50 samples × 2 seeds = 100 videos
+#   Estimated time: 2-4 hours
+#
+# USAGE:
+#   1. EDIT THIS FILE: Add your winners from Category 2
+#   2. cr-batch workflows/wan2_14B_flf2v/configs/category3_parameter_search_sobol.yaml
+#
+# NEXT STEPS:
+#   1. Generate contact sheet
+#   2. Identify optimal parameter ranges
+#   3. Optionally run a focused grid search in the optimal range
+#   4. Use optimal values in Category 1 (seed mining)
+#
+# ============================================================================
+
+workflow_file: ../workflow.json
+sampling_strategy: sobol  # Sobol quasi-random sampling
+num_samples: 50  # 50 samples is usually enough for 3-5 parameters
+seeds_per_sample: 2  # 2 seeds per sample
+
+parameters:
+  # ==========================================================================
+  # ⚠️  EDIT HERE: ADD YOUR WINNERS FROM CATEGORY 2
+  # ==========================================================================
+
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "res_3m_ode")
+
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "karras")
+
+  # Mirror for node 58
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  # ==========================================================================
+  # PARAMETER EXPLORATION (Continuous Ranges for Sobol)
+  # ==========================================================================
+
+  # CFG (Guidance Scale) - How strongly to follow the prompt
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: continuous  # Sobol will sample anywhere in this range
+    min: 1.0
+    max: 3.0
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: continuous
+    min: 1.0
+    max: 3.0
+
+  # Sampling Shift - Affects noise schedule
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: continuous
+    min: 3
+    max: 7
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: continuous
+    min: 3
+    max: 7
+
+  # LoRA Strength - How strongly the LoRA affects the model
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: continuous
+    min: 0.5
+    max: 3.0
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: continuous
+    min: 0.5
+    max: 3.0
+
+  # ==========================================================================
+  # OPTIONAL: ADD MORE PARAMETERS (Sobol handles 4-5 parameters well!)
+  # ==========================================================================
+  #
+  # Example: Also vary FPS
+  #
+  # video_fps:
+  #   path: nodes.60.inputs.fps
+  #   type: continuous
+  #   min: 16
+  #   max: 30
+  #
+  # Example: Also vary video length
+  #
+  # wanfirstlastframetovideo_length:
+  #   path: nodes.67.inputs.length
+  #   type: continuous
+  #   min: 60
+  #   max: 181
+  #
+  # With 5 parameters, 50 samples still covers the space well!
+  #
+  # ==========================================================================
+
+  # ==========================================================================
+  # FIXED PARAMETERS
+  # ==========================================================================
+
+  # Steps (fixed at 4 for Light LoRAs)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # Step ranges
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Video settings
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # Random seeds
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+# ==========================================================================
+# OUTPUT CONFIGURATION
+# ==========================================================================
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_cfg{sampler_cfg:.2f}_sh{sampling_shift:.1f}_lora{lora_strength_model:.2f}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ==========================================================================
+# SOBOL VS GRID: When to Use Each
+# ==========================================================================
+#
+# Use GRID when:
+# - You have 2-3 parameters
+# - You want to see effect of EACH discrete value
+# - You have time for exhaustive testing
+# - Example: 5 × 5 × 6 = 150 combos (manageable)
+#
+# Use SOBOL when:
+# - You have 4+ parameters
+# - Grid would be too many videos (thousands)
+# - You want to understand parameter interactions
+# - You want efficient coverage of the space
+# - Example: 50 samples covers 5-dimensional space well
+#
+# Grid for 5 parameters: 5^5 = 3,125 combos (too many!)
+# Sobol for 5 parameters: 50 samples (efficient!)
+#
+# ==========================================================================
+
+# ==========================================================================
+# ANALYSIS TIPS
+# ==========================================================================
+#
+# After batch completes:
+#
+# 1. Generate contact sheet:
+#    cr-contact-sheet output/batch_*
+#
+# 2. Examine metadata.csv for patterns:
+#    import pandas as pd
+#    df = pd.read_csv('output/batch_*/metadata.csv')
+#
+#    # Add your quality ratings (manual or from video analysis)
+#    df['quality'] = [...]  # Your ratings 1-10
+#
+#    # Find optimal ranges
+#    print("Best CFG range:")
+#    print(df[df['quality'] > 7]['sampler_cfg'].describe())
+#
+#    print("Best shift range:")
+#    print(df[df['quality'] > 7]['sampling_shift'].describe())
+#
+# 3. Look for parameter correlations:
+#    # Do high-quality videos cluster around certain param combos?
+#    best = df[df['quality'] > 8]
+#    print(best[['sampler_cfg', 'sampling_shift', 'lora_strength_model']].mean())
+#
+# 4. Optional: Run focused grid search
+#    If Sobol reveals optimal ranges (e.g., CFG 1.5-2.0, shift 5-6),
+#    run a small grid in that range for fine-tuning
+#
+# 5. Document optimal values for Category 1 (seed mining):
+#    - Best CFG: ____
+#    - Best shift: ____
+#    - Best LoRA: ____
+#
+# ==========================================================================

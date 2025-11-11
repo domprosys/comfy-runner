@@ -1,0 +1,262 @@
+# ============================================================================
+# CATEGORY 3: 🔬 PARAMETER SEARCH (Grid Strategy)
+# ============================================================================
+#
+# PURPOSE: Find optimal parameter values using exhaustive grid search
+#
+# WHEN TO USE:
+#   - AFTER Category 2 (you know the best sampler/scheduler)
+#   - When varying 2-3 parameters
+#   - When you want to understand individual parameter effects
+#
+# WHAT VARIES:
+#   - sampler_cfg (1.0 → 3.0)
+#   - sampling_shift (3 → 7)
+#   - lora_strength_model (0.5 → 3.0)
+#
+# WHAT'S FIXED:
+#   - Sampler (EDIT BELOW with winner from Category 2!)
+#   - Scheduler (EDIT BELOW with winner from Category 2!)
+#   - Seeds (2 per combo)
+#
+# EXPECTED OUTPUT (if all 3 params varied):
+#   5 CFG × 5 shift × 6 LoRA × 2 seeds = 300 videos
+#   Estimated time: 6-8 hours
+#
+#   To reduce: Fix one or two parameters (see examples below)
+#
+# USAGE:
+#   1. EDIT THIS FILE: Add your winners from Category 2
+#   2. cr-batch workflows/wan2_14B_flf2v/configs/category3_parameter_search_grid.yaml
+#
+# NEXT STEPS:
+#   1. Generate contact sheet
+#   2. Identify optimal parameter values
+#   3. Use optimal values in Category 1 (seed mining)
+#
+# ============================================================================
+
+workflow_file: ../workflow.json
+sampling_strategy: grid  # Exhaustive grid search
+num_samples: 100  # Ignored for grid
+seeds_per_sample: 2  # 2 seeds per combo
+
+parameters:
+  # ==========================================================================
+  # ⚠️  EDIT HERE: ADD YOUR WINNERS FROM CATEGORY 2
+  # ==========================================================================
+
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "res_3m_ode")
+
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← REPLACE with winner (e.g., "karras")
+
+  # Mirror for node 58
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values: ["EDIT_ME"]  # ← Same as above
+
+  # ==========================================================================
+  # PARAMETER EXPLORATION
+  # ==========================================================================
+
+  # CFG (Guidance Scale) - How strongly to follow the prompt
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: linear
+    min: 1.0
+    max: 3.0
+    step: 0.5  # Values: 1.0, 1.5, 2.0, 2.5, 3.0 (5 values)
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: linear
+    min: 1.0
+    max: 3.0
+    step: 0.5
+
+  # Sampling Shift - Affects noise schedule
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: linear
+    min: 3
+    max: 7
+    step: 1  # Values: 3, 4, 5, 6, 7 (5 values)
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: linear
+    min: 3
+    max: 7
+    step: 1
+
+  # LoRA Strength - How strongly the LoRA affects the model
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: linear
+    min: 0.5
+    max: 3.0
+    step: 0.5  # Values: 0.5, 1.0, 1.5, 2.0, 2.5, 3.0 (6 values)
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: linear
+    min: 0.5
+    max: 3.0
+    step: 0.5
+
+  # ==========================================================================
+  # OPTIMIZATION TIP: Reduce Video Count
+  # ==========================================================================
+  #
+  # Current config: 5 CFG × 5 shift × 6 LoRA × 2 seeds = 300 videos
+  #
+  # Too many? Try these strategies:
+  #
+  # Option 1: Fix one parameter (e.g., keep LoRA at recommended 2.0)
+  #   lora_strength_model: {type: values, values: [2.0]}
+  #   Result: 5 × 5 × 1 × 2 = 50 videos
+  #
+  # Option 2: Reduce step size (coarser grid)
+  #   sampler_cfg: {min: 1.0, max: 3.0, step: 1.0}  # 3 values instead of 5
+  #   Result: 3 × 5 × 6 × 2 = 180 videos
+  #
+  # Option 3: Narrow the ranges (based on intuition)
+  #   sampler_cfg: {min: 1.0, max: 2.0, step: 0.25}  # Focus on 1.0-2.0
+  #
+  # Option 4: Use Sobol search instead (see category3_parameter_search_sobol.yaml)
+  #   Much more efficient for 3+ parameters!
+  #
+  # ==========================================================================
+
+  # ==========================================================================
+  # FIXED PARAMETERS
+  # ==========================================================================
+
+  # Steps (fixed at 4 for Light LoRAs)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # Step ranges
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Video settings
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # Random seeds
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+# ==========================================================================
+# OUTPUT CONFIGURATION
+# ==========================================================================
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_cfg{sampler_cfg:.1f}_sh{sampling_shift:.0f}_lora{lora_strength_model:.1f}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ==========================================================================
+# ANALYSIS TIPS
+# ==========================================================================
+#
+# After batch completes:
+#
+# 1. Generate contact sheet:
+#    cr-contact-sheet output/batch_*
+#
+# 2. Look for sweet spots:
+#    - Which CFG range looks best? (e.g., 1.5-2.0)
+#    - Which shift value? (e.g., 5-6)
+#    - Which LoRA strength? (e.g., 2.0)
+#
+# 3. Identify parameter interactions:
+#    - Does high CFG need lower shift?
+#    - Does high LoRA need lower CFG?
+#
+# 4. Plot response surfaces (if many samples):
+#    import pandas as pd
+#    import matplotlib.pyplot as plt
+#    df = pd.read_csv('output/batch_*/metadata.csv')
+#    # Add your quality ratings
+#    # Plot: quality vs CFG, quality vs shift, etc.
+#
+# 5. Document optimal values for Category 1 (seed mining):
+#    - Best CFG: ____
+#    - Best shift: ____
+#    - Best LoRA: ____
+#
+# ==========================================================================

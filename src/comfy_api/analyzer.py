@@ -3,13 +3,21 @@
 ComfyUI Workflow Analyzer (packaged)
 Analyzes workflow JSON files and extracts parameters.
 Generates template batch configuration for parameter exploration.
+Can also generate Category 1/2/3 templates automatically.
 """
 
 import json
 import sys
+import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 import yaml
+
+try:
+    from .category_generator import generate_all_category_templates
+    CATEGORY_GENERATOR_AVAILABLE = True
+except ImportError:
+    CATEGORY_GENERATOR_AVAILABLE = False
 
 
 def analyze_node(node_id: str, node_data: Dict[str, Any]) -> List[Tuple[str, str, Any, str]]:
@@ -197,7 +205,7 @@ def print_analysis_report(categories: Dict[str, List[Dict]]):
         print()
 
 
-def analyze_workflow(workflow_file: Path, output_config: Path = None):
+def analyze_workflow(workflow_file: Path, output_config: Path = None, generate_categories: bool = False):
     print("=" * 70)
     print("🔍 ComfyUI Workflow Analyzer")
     print("=" * 70)
@@ -211,6 +219,31 @@ def analyze_workflow(workflow_file: Path, output_config: Path = None):
             all_parameters.extend(params)
     categories = categorize_parameters(all_parameters)
     print_analysis_report(categories)
+
+    # Generate category templates if requested
+    if generate_categories:
+        if not CATEGORY_GENERATOR_AVAILABLE:
+            print("\n⚠️  Category generator not available (import failed)")
+            print("    Falling back to standard config generation only")
+        else:
+            print("\n" + "=" * 70)
+            print("🎯 GENERATING CATEGORY TEMPLATES")
+            print("=" * 70)
+            result = generate_all_category_templates(workflow_file, workflow, categories)
+            print(f"\n✓ Workflow type detected: {result['workflow_type'].upper()}")
+            print(f"  - Has LoRA: {'Yes' if result['has_lora'] else 'No'}")
+            print(f"  - Step count: {result['step_count']}")
+            print(f"\n✓ Generated templates:")
+            print(f"  - Category 2 (Surfing): {result['category2']}")
+            print(f"  - Category 3 (Search):  {result['category3']}")
+            print(f"  - Category 1 (Mining):  {result['category1']}")
+            print(f"\n💡 Next steps:")
+            print(f"   1. Review generated templates in configs/")
+            print(f"   2. Start with: cr-batch {result['category2']}")
+            print("\n" + "=" * 70)
+            return  # Skip standard config generation
+
+    # Standard config generation
     config = generate_config_template(workflow_file, categories)
     if output_config is None:
         output_config = workflow_file.with_name(f"{workflow_file.stem}_batch_config.yaml")
@@ -240,19 +273,42 @@ def analyze_workflow(workflow_file: Path, output_config: Path = None):
     print(f"   1. Edit {output_config}")
     print(f"   2. Uncomment parameters to vary")
     print(f"   3. Run: python -m comfy_api.batch {output_config}")
+    print(f"\n💡 Tip: Use --generate-category-templates to auto-generate Category 1/2/3 configs!")
     print("\n" + "=" * 70)
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python -m comfy_api.analyzer <workflow.json> [output_config.yaml]")
-        sys.exit(1)
-    workflow_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+    parser = argparse.ArgumentParser(
+        description="Analyze ComfyUI workflow and generate batch configuration templates",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Standard analysis (generates single batch config)
+  cr-analyze workflow.json
+
+  # Generate Category 1/2/3 templates automatically
+  cr-analyze workflow.json --generate-category-templates
+
+  # Specify custom output path
+  cr-analyze workflow.json --output custom_config.yaml
+        """
+    )
+
+    parser.add_argument('workflow', type=str, help='Path to ComfyUI workflow JSON file')
+    parser.add_argument('-o', '--output', type=str, help='Output config file path (default: <workflow>_batch_config.yaml)')
+    parser.add_argument('-g', '--generate-category-templates', action='store_true',
+                        help='Generate Category 1/2/3 templates (Seed Mining, Sampler Surfing, Parameter Search)')
+
+    args = parser.parse_args()
+
+    workflow_path = Path(args.workflow)
+    output_path = Path(args.output) if args.output else None
+
     if not workflow_path.exists():
         print(f"❌ Error: Workflow file not found: {workflow_path}")
         sys.exit(1)
-    analyze_workflow(workflow_path, output_path)
+
+    analyze_workflow(workflow_path, output_path, generate_categories=args.generate_category_templates)
 
 
 if __name__ == "__main__":
