@@ -1,0 +1,253 @@
+# ComfyUI Batch Configuration - Sampler/Scheduler Exploration Template
+# Focus: Testing different sampler and scheduler combinations
+#
+# IMPORTANT: Some sampler/scheduler combinations may be incompatible!
+# Research compatibility before running. Remove incompatible combos from values lists.
+#
+# Common sampler families:
+#   - Euler family: euler, euler_a (ancestral)
+#   - DPM family: dpm_2, dpm_2_a, dpm_fast, dpm_adaptive
+#   - DPM++: dpmpp_2s_a, dpmpp_sde, dpmpp_2m, dpmpp_2m_sde, dpmpp_3m_sde
+#   - Others: heun, lms, ddim, uni_pc, uni_pc_bh2
+#
+# Common schedulers:
+#   - simple: Basic linear schedule
+#   - normal: Standard schedule
+#   - karras: Karras noise schedule (often good with ancestral samplers)
+#   - exponential: Exponential decay
+#   - sgm_uniform: Stable Diffusion 3 style
+#   - ddim_uniform: DDIM-style schedule
+#   - beta: Beta distribution schedule
+
+workflow_file: ../workflow.json
+sampling_strategy: grid  # Use grid to test all combinations systematically
+num_samples: 100  # Ignored for grid strategy
+seeds_per_sample: 3  # Test each combo with 3 different seeds for consistency
+
+parameters:
+  # ============================================================================
+  # SAMPLER AND SCHEDULER EXPLORATION (High Noise Model - Node 57)
+  # ============================================================================
+
+  sampler_name:
+    path: nodes.57.inputs.sampler_name
+    type: values
+    values:
+      # Euler family
+      - "euler"
+      - "euler_a"
+
+      # DPM++ family (most popular)
+      - "dpmpp_2m"
+      - "dpmpp_2m_sde"
+      - "dpmpp_sde"
+
+      # Other popular samplers
+      - "heun"
+      - "ddim"
+      - "uni_pc"
+
+      # Additional options (uncomment to test):
+      # - "dpm_2"
+      # - "dpm_2_a"
+      # - "dpmpp_2s_a"
+      # - "dpmpp_3m_sde"
+      # - "lms"
+      # - "uni_pc_bh2"
+
+  scheduler:
+    path: nodes.57.inputs.scheduler
+    type: values
+    values:
+      - "simple"
+      - "normal"
+      - "karras"
+      - "exponential"
+
+      # Additional options (uncomment to test):
+      # - "sgm_uniform"
+      # - "ddim_uniform"
+      # - "beta"
+
+  # ============================================================================
+  # SAMPLER AND SCHEDULER EXPLORATION (Low Noise Model - Node 58)
+  # ============================================================================
+
+  sampler_name_node58:
+    path: nodes.58.inputs.sampler_name
+    type: values
+    values:
+      # Keep same as node 57, or test different combinations
+      - "euler"
+      - "euler_a"
+      - "dpmpp_2m"
+      - "dpmpp_2m_sde"
+      - "dpmpp_sde"
+      - "heun"
+      - "ddim"
+      - "uni_pc"
+
+  scheduler_node58:
+    path: nodes.58.inputs.scheduler
+    type: values
+    values:
+      - "simple"
+      - "normal"
+      - "karras"
+      - "exponential"
+
+  # ============================================================================
+  # FIXED PARAMETERS (Keep consistent for fair comparison)
+  # ============================================================================
+
+  # Keep shift at optimal value (research suggests 5-7 for most models)
+  sampling_shift:
+    path: nodes.54.inputs.shift
+    type: values
+    values: [5]
+
+  sampling_shift_node55:
+    path: nodes.55.inputs.shift
+    type: values
+    values: [5]
+
+  # Keep steps moderate (4 is what LightX2V LoRAs are trained for)
+  sampler_steps:
+    path: nodes.57.inputs.steps
+    type: values
+    values: [4]
+
+  sampler_steps_node58:
+    path: nodes.58.inputs.steps
+    type: values
+    values: [4]
+
+  # Keep CFG moderate (too high = overcooked, too low = ignored prompt)
+  sampler_cfg:
+    path: nodes.57.inputs.cfg
+    type: values
+    values: [1]
+
+  sampler_cfg_node58:
+    path: nodes.58.inputs.cfg
+    type: values
+    values: [1]
+
+  # Keep step ranges as designed
+  sampler_start_at_step:
+    path: nodes.57.inputs.start_at_step
+    type: values
+    values: [0]
+
+  sampler_end_at_step:
+    path: nodes.57.inputs.end_at_step
+    type: values
+    values: [2]
+
+  sampler_start_at_step_node58:
+    path: nodes.58.inputs.start_at_step
+    type: values
+    values: [2]
+
+  sampler_end_at_step_node58:
+    path: nodes.58.inputs.end_at_step
+    type: values
+    values: [10000]
+
+  # Keep video settings consistent
+  video_fps:
+    path: nodes.60.inputs.fps
+    type: values
+    values: [24]
+
+  wanfirstlastframetovideo_width:
+    path: nodes.67.inputs.width
+    type: values
+    values: [1280]
+
+  wanfirstlastframetovideo_height:
+    path: nodes.67.inputs.height
+    type: values
+    values: [720]
+
+  wanfirstlastframetovideo_length:
+    path: nodes.67.inputs.length
+    type: values
+    values: [121]
+
+  wanfirstlastframetovideo_batch_size:
+    path: nodes.67.inputs.batch_size
+    type: values
+    values: [1]
+
+  # Keep LoRA strengths at recommended values
+  lora_strength_model:
+    path: nodes.91.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  lora_strength_model_node92:
+    path: nodes.92.inputs.strength_model
+    type: values
+    values: [2.0]
+
+  # Random seeds for variation
+  sampler_noise_seed:
+    path: nodes.57.inputs.noise_seed
+    type: random_seed
+
+  sampler_noise_seed_node58:
+    path: nodes.58.inputs.noise_seed
+    type: random_seed
+
+output:
+  base_dir: output
+  run_name_pattern: '{run_id:04d}_s{sampler_name}_sch{scheduler}'
+  save_params_json: true
+  save_metadata_csv: true
+
+resume:
+  enabled: true
+  skip_existing: true
+
+comfyui:
+  server_address: 127.0.0.1:8188
+  poll_interval: 2
+
+# ============================================================================
+# USAGE NOTES
+# ============================================================================
+#
+# 1. RESEARCH COMPATIBILITY FIRST!
+#    Check ComfyUI docs or community forums for which sampler/scheduler
+#    combinations work well together.
+#
+# 2. ESTIMATED RUN COUNT:
+#    Current config = 8 samplers × 4 schedulers × 3 seeds = 96 videos (node 57)
+#    If testing both nodes independently: 96 × 96 = 9,216 videos (too many!)
+#
+#    Consider:
+#    - Keeping node 58 fixed (use same as node 57)
+#    - Or test fewer samplers (4-5 popular ones)
+#    - Or reduce seeds_per_sample to 1-2
+#
+# 3. RECOMMENDED FIRST TEST:
+#    Start with 3-4 samplers and 2-3 schedulers for ~24 videos:
+#    samplers: ["euler", "dpmpp_2m", "dpmpp_2m_sde"]
+#    schedulers: ["normal", "karras"]
+#    seeds_per_sample: 2
+#    = 3 × 2 × 2 = 12 videos (manageable)
+#
+# 4. QUALITY METRICS TO WATCH:
+#    - Motion smoothness (temporal coherence)
+#    - Detail preservation vs blur
+#    - Prompt adherence
+#    - Generation speed (some samplers are faster)
+#
+# 5. KNOWN GOOD COMBINATIONS (anecdotal):
+#    - euler + normal (baseline, stable)
+#    - euler_a + karras (good for creative variation)
+#    - dpmpp_2m + karras (popular for quality)
+#    - dpmpp_2m_sde + exponential (good for detail)
+#
+# ============================================================================
