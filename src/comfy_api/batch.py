@@ -451,16 +451,42 @@ def run_batch(config_path: str):
     output_base = Path(config['output']['base_dir'])
     if not output_base.is_absolute():
         output_base = (config_dir / output_base).resolve()
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    batch_dir = output_base / f"batch_{timestamp}"
-    batch_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check for resumable batch
+    resume_enabled = config.get('resume', {}).get('enabled', True)
+    batch_dir = None
+
+    if resume_enabled and output_base.exists():
+        # Find most recent batch directory
+        batch_dirs = sorted(output_base.glob('batch_*'), key=lambda p: p.stat().st_mtime, reverse=True)
+        if batch_dirs:
+            latest_batch = batch_dirs[0]
+            # Check if it has progress.json and incomplete runs
+            progress_file = latest_batch / "progress.json"
+            if progress_file.exists():
+                progress = load_progress(progress_file)
+                # Resume if there are any runs (incomplete batch)
+                if progress['completed_runs'] or progress['failed_runs']:
+                    batch_dir = latest_batch
+                    print(f"\n♻️  Resuming batch: {batch_dir.name}")
+                    print(f"   Completed: {len(progress['completed_runs'])}")
+                    print(f"   Failed: {len(progress['failed_runs'])}")
+
+    # Create new batch if not resuming
+    if batch_dir is None:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        batch_dir = output_base / f"batch_{timestamp}"
+        batch_dir.mkdir(parents=True, exist_ok=True)
+        print(f"\n📁 New batch directory: {batch_dir}")
+
     runs_dir = batch_dir / "runs"
     runs_dir.mkdir(exist_ok=True)
 
-    print(f"\n📁 Output directory: {batch_dir}")
-
-    with open(batch_dir / "config.yaml", 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
+    # Save config
+    config_file = batch_dir / "config.yaml"
+    if not config_file.exists():
+        with open(config_file, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
 
     progress_file = batch_dir / "progress.json"
     progress = load_progress(progress_file)
@@ -468,9 +494,13 @@ def run_batch(config_path: str):
     metadata_file = batch_dir / "metadata.csv"
     param_names = list(param_specs.keys())
     csv_fieldnames = ['run_id'] + param_names + ['prompt_id', 'output_path', 'status', 'timestamp']
-    csv_file = open(metadata_file, 'w', newline='')
+
+    # Open in append mode if resuming, write mode if new
+    csv_exists = metadata_file.exists()
+    csv_file = open(metadata_file, 'a' if csv_exists else 'w', newline='')
     csv_writer = csv.DictWriter(csv_file, fieldnames=csv_fieldnames)
-    csv_writer.writeheader()
+    if not csv_exists:
+        csv_writer.writeheader()
 
     seeds_per_sample = config.get('seeds_per_sample', 1)
     seed_params = [k for k, v in param_specs.items() if v['type'] == 'random_seed']
