@@ -294,12 +294,33 @@ Examples:
         """
     )
 
-    parser.add_argument('workflow', type=str, help='Path to ComfyUI workflow JSON file')
+    parser.add_argument('workflow', type=str, nargs='?', help='Path to ComfyUI workflow JSON file')
     parser.add_argument('-o', '--output', type=str, help='Output config file path (default: <workflow>_batch_config.yaml)')
     parser.add_argument('-g', '--generate-category-templates', action='store_true',
                         help='Generate Category 1/2/3 templates (Seed Mining, Sampler Surfing, Parameter Search)')
+    parser.add_argument('--list-sampler-groups', action='store_true',
+                        help='List all available sampler groups and exit')
 
     args = parser.parse_args()
+
+    # Handle --list-sampler-groups
+    if args.list_sampler_groups:
+        from .category_generator import load_sampler_groups
+        print("\n" + "=" * 70)
+        print("📋 Available Sampler Groups")
+        print("=" * 70)
+        groups = load_sampler_groups()
+        for group_name, samplers in groups.items():
+            print(f"\n{group_name}:")
+            for sampler in samplers:
+                print(f"  - {sampler}")
+        print("\n" + "=" * 70)
+        print("\n💡 Edit workflows/SAMPLER_GROUPS.md to customize these groups")
+        sys.exit(0)
+
+    if not args.workflow:
+        parser.error("workflow argument is required (unless using --list-sampler-groups)")
+        sys.exit(1)
 
     workflow_path = Path(args.workflow)
     output_path = Path(args.output) if args.output else None

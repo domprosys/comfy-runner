@@ -7,7 +7,54 @@ Detects workflow type (base model, Light LoRA, SNR) and generates appropriate te
 """
 
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
+import re
+
+
+# Sampler group definitions
+SAMPLER_GROUPS = {
+    'euler_family': ['euler', 'euler_cfg_pp', 'euler_ancestral', 'euler_ancestral_cfg_pp'],
+    'high_order': ['heun', 'heunpp2', 'uni_pc', 'uni_pc_bh2', 'ipndm', 'ipndm_v'],
+    'dpmpp_family': ['dpmpp_2m', 'dpmpp_2m_sde', 'dpmpp_2m_sde_gpu', 'dpmpp_3m_sde', 'uni_pc', 'uni_pc_bh2'],
+}
+
+
+def load_sampler_groups(sampler_groups_file: Optional[Path] = None) -> Dict[str, List[str]]:
+    """
+    Load sampler groups from SAMPLER_GROUPS.md or return built-in defaults.
+
+    Args:
+        sampler_groups_file: Path to SAMPLER_GROUPS.md (optional)
+
+    Returns:
+        Dict mapping group names to sampler lists
+    """
+    if sampler_groups_file and sampler_groups_file.exists():
+        groups = {}
+        current_group = None
+
+        with open(sampler_groups_file, 'r') as f:
+            for line in f:
+                # Match group headers like "## Group 1: Euler Family"
+                group_match = re.match(r'^##\s+Group\s+\d+:\s+(.+)$', line)
+                if group_match:
+                    group_name = group_match.group(1).strip().lower().replace(' ', '_')
+                    current_group = group_name
+                    groups[current_group] = []
+                    continue
+
+                # Match sampler lines like "  - euler"
+                if current_group:
+                    sampler_match = re.match(r'^\s+-\s+(\w+)', line)
+                    if sampler_match:
+                        sampler = sampler_match.group(1).strip()
+                        # Remove comments
+                        if '#' not in sampler:
+                            groups[current_group].append(sampler)
+
+        return groups if groups else SAMPLER_GROUPS
+
+    return SAMPLER_GROUPS
 
 
 class WorkflowTypeDetector:
@@ -55,8 +102,25 @@ class WorkflowTypeDetector:
         else:
             return "base"
 
-    def get_recommended_samplers(self) -> List[str]:
-        """Get recommended samplers based on workflow type"""
+    def get_recommended_samplers(self, sampler_group: Optional[str] = None) -> List[str]:
+        """
+        Get recommended samplers based on workflow type or specified group.
+
+        Args:
+            sampler_group: Optional group name (e.g., 'euler_family', 'dpmpp_family')
+
+        Returns:
+            List of sampler names
+        """
+        # If specific group requested, return it
+        if sampler_group:
+            groups = load_sampler_groups()
+            if sampler_group in groups:
+                return groups[sampler_group]
+            else:
+                print(f"⚠️  Unknown sampler group '{sampler_group}', using defaults")
+
+        # Otherwise, return workflow-type defaults
         if self.workflow_type == "light_lora":
             return ["euler", "dpmpp_2m", "res_3m_ode", "res_3s_ode", "deis_2m_ode"]
         elif self.workflow_type == "base":
@@ -68,6 +132,11 @@ class WorkflowTypeDetector:
     def get_recommended_schedulers(self) -> List[str]:
         """Get recommended schedulers"""
         return ["normal", "karras", "exponential", "bong_tangent"]
+
+    @staticmethod
+    def list_sampler_groups() -> Dict[str, List[str]]:
+        """List all available sampler groups"""
+        return load_sampler_groups()
 
     def get_workflow_context(self) -> str:
         """Get human-readable context about detected workflow"""
