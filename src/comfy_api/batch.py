@@ -85,13 +85,7 @@ def format_params_display(run_params: Dict[str, Any], param_specs: Dict[str, Dic
                 short_key = key.replace('seed_node', 'seed')
 
             # Format value
-            if isinstance(value, (int, float)):
-                if 'seed' in key:
-                    value_str = f"{value:,}"  # Add thousand separators to seeds
-                else:
-                    value_str = str(value)
-            else:
-                value_str = str(value)
+            value_str = str(value)
 
             # Color code by parameter type
             if 'sampler' in key.lower():
