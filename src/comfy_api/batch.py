@@ -427,7 +427,7 @@ def download_outputs(prompt_id: str, output_dir: Path, server_address: str, run_
     return saved_files
 
 
-def run_batch(config_path: str):
+def run_batch(config_path: str, resume_batch_dir: str = None):
     print("=" * 70)
     print("🎬 ComfyUI Generic Batch Parameter Explorer")
     print("=" * 70)
@@ -456,7 +456,28 @@ def run_batch(config_path: str):
     resume_enabled = config.get('resume', {}).get('enabled', True)
     batch_dir = None
 
-    if resume_enabled and output_base.exists():
+    # If specific batch directory provided, use it
+    if resume_batch_dir:
+        batch_dir = Path(resume_batch_dir)
+        if not batch_dir.is_absolute():
+            batch_dir = (config_dir / batch_dir).resolve()
+
+        if not batch_dir.exists():
+            print(f"❌ Error: Batch directory not found: {batch_dir}")
+            sys.exit(1)
+
+        progress_file = batch_dir / "progress.json"
+        if progress_file.exists():
+            progress = load_progress(progress_file)
+            print(f"\n♻️  Resuming specific batch: {batch_dir.name}")
+            print(f"   Completed: {len(progress['completed_runs'])}")
+            print(f"   Failed: {len(progress['failed_runs'])}")
+        else:
+            print(f"❌ Error: No progress.json found in {batch_dir}")
+            sys.exit(1)
+
+    # Auto-detect most recent batch
+    elif resume_enabled and output_base.exists():
         # Find most recent batch directory
         batch_dirs = sorted(output_base.glob('batch_*'), key=lambda p: p.stat().st_mtime, reverse=True)
         if batch_dirs:
@@ -468,7 +489,7 @@ def run_batch(config_path: str):
                 # Resume if there are any runs (incomplete batch)
                 if progress['completed_runs'] or progress['failed_runs']:
                     batch_dir = latest_batch
-                    print(f"\n♻️  Resuming batch: {batch_dir.name}")
+                    print(f"\n♻️  Auto-resuming most recent batch: {batch_dir.name}")
                     print(f"   Completed: {len(progress['completed_runs'])}")
                     print(f"   Failed: {len(progress['failed_runs'])}")
 
@@ -588,10 +609,28 @@ def run_batch(config_path: str):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python -m comfy_api.batch <config.yaml>")
-        sys.exit(1)
-    run_batch(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="ComfyUI Batch Parameter Explorer",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Start new batch or auto-resume most recent
+  cr-batch config.yaml
+
+  # Resume a specific batch directory
+  cr-batch config.yaml --resume output/batch_2025-11-12_20-48-20
+
+  # Force new batch (disable auto-resume)
+  # Set resume.enabled: false in config.yaml
+        """
+    )
+    parser.add_argument('config', type=str, help='Path to batch config YAML file')
+    parser.add_argument('--resume', type=str, metavar='BATCH_DIR',
+                        help='Resume a specific batch directory (relative or absolute path)')
+
+    args = parser.parse_args()
+    run_batch(args.config, resume_batch_dir=args.resume)
 
 
 if __name__ == "__main__":
