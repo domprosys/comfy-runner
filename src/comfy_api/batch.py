@@ -252,13 +252,24 @@ def run_workflow_simple(workflow: Dict, server_address: str, poll_interval: int)
         return False, "", []
 
 
-def download_outputs(prompt_id: str, output_dir: Path, server_address: str) -> List[Path]:
+def download_outputs(prompt_id: str, output_dir: Path, server_address: str, run_params: dict = None) -> List[Path]:
+    """
+    Download outputs from ComfyUI and optionally rename with sampler/scheduler info.
+
+    Args:
+        prompt_id: ComfyUI prompt ID
+        output_dir: Directory to save outputs
+        server_address: ComfyUI server address
+        run_params: Optional dict of run parameters for filename augmentation
+    """
     import urllib.request
     import urllib.parse
+
     def get_history(prompt_id):
         url = f"http://{server_address}/history/{prompt_id}"
         with urllib.request.urlopen(url) as response:
             return json.loads(response.read())
+
     def download_file_streaming(filename, subfolder, folder_type, save_path):
         params = {"filename": filename, "subfolder": subfolder, "type": folder_type}
         url_params = urllib.parse.urlencode(params)
@@ -270,10 +281,42 @@ def download_outputs(prompt_id: str, output_dir: Path, server_address: str) -> L
                     if not chunk:
                         break
                     f.write(chunk)
+
+    def augment_filename(original_filename: str, run_params: dict) -> str:
+        """Add sampler/scheduler info to filename if available"""
+        if not run_params:
+            return original_filename
+
+        # Extract sampler and scheduler from run_params
+        sampler = None
+        scheduler = None
+
+        for key, value in run_params.items():
+            if 'sampler_name' in key.lower() and not sampler:
+                sampler = value
+            elif 'scheduler' in key.lower() and not scheduler:
+                scheduler = value
+
+        # If we found sampler or scheduler, augment the filename
+        if sampler or scheduler:
+            stem = Path(original_filename).stem
+            suffix = Path(original_filename).suffix
+
+            parts = [stem]
+            if sampler:
+                parts.append(f"s-{sampler}")
+            if scheduler:
+                parts.append(f"sch-{scheduler}")
+
+            return "_".join(parts) + suffix
+
+        return original_filename
+
     history = get_history(prompt_id)
     outputs = history[prompt_id].get('outputs', {})
     saved_files = []
     output_dir.mkdir(parents=True, exist_ok=True)
+
     for _, node_output in outputs.items():
         for media_key in ['images', 'gifs', 'videos']:
             if media_key in node_output:
@@ -281,9 +324,14 @@ def download_outputs(prompt_id: str, output_dir: Path, server_address: str) -> L
                     filename = media['filename']
                     subfolder = media.get('subfolder', '')
                     file_type = media.get('type', 'output')
-                    save_path = output_dir / filename
+
+                    # Augment filename with sampler/scheduler if available
+                    augmented_filename = augment_filename(filename, run_params)
+                    save_path = output_dir / augmented_filename
+
                     download_file_streaming(filename, subfolder, file_type, save_path)
                     saved_files.append(save_path)
+
     return saved_files
 
 
@@ -370,7 +418,7 @@ def run_batch(config_path: str):
             if success:
                 print(f"   ✓ Execution complete (prompt_id: {prompt_id})")
                 print(f"   📥 Downloading outputs...")
-                output_files = download_outputs(prompt_id, run_dir, server_address)
+                output_files = download_outputs(prompt_id, run_dir, server_address, run_params)
                 if output_files:
                     print(f"   ✓ Saved {len(output_files)} file(s)")
                     if config['output'].get('save_params_json', True):
