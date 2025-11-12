@@ -17,6 +17,104 @@ import numpy as np
 from scipy.stats import qmc
 
 
+# ANSI color codes
+class Colors:
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    DIM = '\033[2m'
+
+    # Main colors
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+
+    # Bright versions
+    BRIGHT_CYAN = '\033[1;96m'
+    BRIGHT_GREEN = '\033[1;92m'
+    BRIGHT_YELLOW = '\033[1;93m'
+
+
+def format_params_display(run_params: Dict[str, Any], param_specs: Dict[str, Dict], compact: bool = True) -> str:
+    """
+    Format parameters for display, highlighting varying parameters.
+
+    Args:
+        run_params: Current run parameters
+        param_specs: Parameter specifications (to detect varying vs fixed)
+        compact: If True, only show varying params. If False, show all.
+    """
+    varying_params = {}
+    fixed_params = {}
+
+    for key, value in run_params.items():
+        spec = param_specs.get(key, {})
+        param_type = spec.get('type', 'values')
+
+        # Determine if varying or fixed
+        if param_type == 'random_seed':
+            varying_params[key] = value
+        elif param_type == 'linked':
+            # Linked params vary with their source
+            continue  # Skip, will be shown via source
+        elif param_type in ['continuous', 'discrete']:
+            varying_params[key] = value
+        elif param_type == 'values':
+            values = spec.get('values', [])
+            if len(values) > 1:
+                varying_params[key] = value
+            else:
+                fixed_params[key] = value
+
+    # Build display
+    lines = []
+
+    # Show varying params (highlighted)
+    if varying_params:
+        varying_parts = []
+        for key, value in varying_params.items():
+            # Shorten common parameter names
+            short_key = key
+            if 'sampler_name' in key:
+                short_key = 'sampler' if 'node' not in key else key.replace('sampler_name_node', 's')
+            elif 'scheduler' in key:
+                short_key = 'scheduler' if 'node' not in key else key.replace('scheduler_node', 'sch')
+            elif 'seed' in key:
+                short_key = key.replace('seed_node', 'seed')
+
+            # Format value
+            if isinstance(value, (int, float)):
+                if 'seed' in key:
+                    value_str = f"{value:,}"  # Add thousand separators to seeds
+                else:
+                    value_str = str(value)
+            else:
+                value_str = str(value)
+
+            # Color code by parameter type
+            if 'sampler' in key.lower():
+                colored = f"{Colors.BRIGHT_CYAN}{short_key}={value_str}{Colors.RESET}"
+            elif 'scheduler' in key.lower():
+                colored = f"{Colors.BRIGHT_YELLOW}{short_key}={value_str}{Colors.RESET}"
+            elif 'seed' in key.lower():
+                colored = f"{Colors.DIM}{short_key}={value_str}{Colors.RESET}"
+            else:
+                colored = f"{Colors.GREEN}{short_key}={value_str}{Colors.RESET}"
+
+            varying_parts.append(colored)
+
+        lines.append("   " + " │ ".join(varying_parts))
+
+    # Show fixed params summary (if not compact)
+    if not compact and fixed_params:
+        fixed_summary = f"{Colors.DIM}Fixed: {len(fixed_params)} params{Colors.RESET}"
+        lines.append(f"   {fixed_summary}")
+
+    return "\n".join(lines) if lines else "   (no parameters)"
+
+
 def load_config(config_path: str) -> Dict[str, Any]:
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
@@ -408,19 +506,20 @@ def run_batch(config_path: str):
             run_name = format_run_name(run_name_pattern, run_id, run_params)
             run_dir = runs_dir / run_name
             if run_name in progress['completed_runs']:
-                print(f"\n[{run_id}/{total_runs}] ⏭️  Skipping (already completed): {run_name}")
+                print(f"\n{Colors.DIM}[{run_id}/{total_runs}] ⏭️  Skipping (already completed): {run_name}{Colors.RESET}")
                 completed += 1
                 continue
-            print(f"\n[{run_id}/{total_runs}] ▶️  Running: {run_name}")
-            print(f"   Params: {run_params}")
+            print(f"\n{Colors.BOLD}[{run_id}/{total_runs}]{Colors.RESET} {Colors.GREEN}▶️  Running:{Colors.RESET} {Colors.CYAN}{run_name}{Colors.RESET}")
+            print(format_params_display(run_params, param_specs, compact=True))
             workflow = modify_workflow_generic(base_workflow, run_params, param_specs)
             success, prompt_id, _ = run_workflow_simple(workflow, server_address, poll_interval)
             if success:
-                print(f"   ✓ Execution complete (prompt_id: {prompt_id})")
-                print(f"   📥 Downloading outputs...")
+                print(f"   {Colors.GREEN}✓{Colors.RESET} Execution complete {Colors.DIM}(prompt: {prompt_id}){Colors.RESET}")
+                print(f"   {Colors.BLUE}📥{Colors.RESET} Downloading outputs...")
                 output_files = download_outputs(prompt_id, run_dir, server_address, run_params)
                 if output_files:
-                    print(f"   ✓ Saved {len(output_files)} file(s)")
+                    file_names = [f.name for f in output_files]
+                    print(f"   {Colors.GREEN}✓{Colors.RESET} Saved {Colors.BOLD}{len(output_files)}{Colors.RESET} file(s): {Colors.DIM}{', '.join(file_names)}{Colors.RESET}")
                     if config['output'].get('save_params_json', True):
                         with open(run_dir / "params.json", 'w') as f:
                             json.dump(run_params, f, indent=2)
@@ -435,10 +534,10 @@ def run_batch(config_path: str):
                     csv_file.flush()
                     completed += 1
                 else:
-                    print(f"   ⚠️  No outputs generated")
+                    print(f"   {Colors.YELLOW}⚠️  No outputs generated{Colors.RESET}")
                     failed += 1
             else:
-                print(f"   ❌ Execution failed")
+                print(f"   {Colors.RED}❌ Execution failed{Colors.RESET}")
                 failed += 1
                 progress['failed_runs'].append(run_name)
                 save_progress(progress_file, progress)
@@ -446,16 +545,21 @@ def run_batch(config_path: str):
     csv_file.close()
 
     print("\n" + "=" * 70)
-    print("🎉 Batch execution complete!")
+    print(f"{Colors.BOLD}🎉 Batch execution complete!{Colors.RESET}")
     print("=" * 70)
-    print(f"   Total runs: {total_runs}")
-    print(f"   Completed: {completed}")
-    print(f"   Failed: {failed}")
+    print(f"   Total runs: {Colors.BOLD}{total_runs}{Colors.RESET}")
+    print(f"   {Colors.GREEN}Completed: {completed}{Colors.RESET}")
+    if failed > 0:
+        print(f"   {Colors.RED}Failed: {failed}{Colors.RESET}")
+    else:
+        print(f"   Failed: {failed}")
     if total_runs > 0:
-        print(f"   Success rate: {completed/total_runs*100:.1f}%")
-    print(f"\n📁 Results: {metadata_file.parent}")
-    print(f"📊 Metadata: {metadata_file}")
-    print("\n💡 Next: python -m comfy_api.contact_sheet {batch_dir}")
+        success_rate = completed/total_runs*100
+        rate_color = Colors.GREEN if success_rate == 100 else Colors.YELLOW if success_rate >= 90 else Colors.RED
+        print(f"   Success rate: {rate_color}{success_rate:.1f}%{Colors.RESET}")
+    print(f"\n📁 Results: {Colors.CYAN}{metadata_file.parent}{Colors.RESET}")
+    print(f"📊 Metadata: {Colors.CYAN}{metadata_file}{Colors.RESET}")
+    print(f"\n💡 {Colors.DIM}Next: cr-contact-sheet {batch_dir}{Colors.RESET}")
     print("=" * 70)
 
 
